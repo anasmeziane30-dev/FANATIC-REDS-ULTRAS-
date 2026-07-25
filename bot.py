@@ -130,7 +130,7 @@ async def notify(ctx, *, message: str):
     await status_msg.edit(content=f"✅ تم إرسال الإشعار بنجاح إلى **{success_count}** عضواً في الخاص.")
 
 
-# ----------------- نظام التحذيرات التفاعلي -----------------
+# ----------------- نظام التحذيرات التفاعلي (بلوحة حديثة) -----------------
 
 class WarnModal(discord.ui.Modal, title="إنشاء تحذير وعقوبة لعضو"):
     def __init__(self, member: discord.Member):
@@ -219,21 +219,32 @@ class WarnModal(discord.ui.Modal, title="إنشاء تحذير وعقوبة لع
         if warn_num >= 3:
             try:
                 await self.member.kick(reason=f"تخطي الحد الأقصى للتحذيرات (التحذير رقم {warn_num})")
-                kick_status = "\n• 🚨 **تم طرد العضو (Kick) تلقائياً لتجاوز الحد الأقصى للتحذيرات!**"
+                kick_status = "🚪 **تم الطرد تلقائياً (تجاوز الحد الأقصى)**"
             except Exception as e:
-                kick_status = f"\n• ❌ فشل طرد العضو (تأكد من صلاحيات البوت): {e}"
+                kick_status = f"❌ فشل الطرد: {e}"
 
-        # 5. إنشاء لوحة التحذير ونشرها
+        # 5. تصميم لوحة التحذير الحديثة والعصرية (Modern Embed)
         embed = discord.Embed(
-            title=f"⚠️ avertissement رقم {warn_num:02d}",
-            color=discord.Color.dark_embed()
+            title="⚡ نظام التحذيرات الذكي • Avertissement",
+            description=f"لقد تم تسجيل مخالفة بحق العضو وإتخاذ الإجراء اللازم ضده.",
+            color=discord.Color.from_rgb(231, 76, 60) # لون أحمر عصري فخم
         )
-        embed.add_field(name="العضو (Membre)", value=self.member.mention, inline=False)
-        embed.add_field(name="السبب (La raison)", value=self.reason.value, inline=False)
-        embed.add_field(name="العقوبة (Punition)", value=self.punishment.value, inline=False)
-        embed.add_field(name="مدة العقوبة (Durée de punition)", value=self.duration.value, inline=False)
         
-        embed.set_footer(text=f"بواسطة المشرف: {interaction.user.name} | تم تنفيذ العقوبة وإعطاء الرول تلقائياً{kick_status}")
+        embed.add_field(name="👤 ⟵ العضو المخالف", value=f"{self.member.mention} (`{self.member.id}`)", inline=False)
+        embed.add_field(name="📌 ⟵ سبب المخالفة", value=f"> {self.reason.value}", inline=False)
+        embed.add_field(name="⚖️ ⟵ نوع العقوبة", value=f"`{self.punishment.value}`", inline=True)
+        embed.add_field(name="⏳ ⟵ مدة العقوبة", value=f"`{self.duration.value}`", inline=True)
+        embed.add_field(name="📊 ⟵ حالة السجل", value=f"الإنذار رقم **`{warn_num:02d}`** من 3", inline=True)
+        
+        if kick_status:
+            embed.add_field(name="🚨 ⟵ إجراء إضافي", value=kick_status, inline=False)
+
+        embed.set_thumbnail(url=self.member.display_avatar.url)
+        embed.set_footer(
+            text=f"المشرف المسؤول: {interaction.user.name}",
+            icon_url=interaction.user.display_avatar.url
+        )
+        embed.timestamp = datetime.datetime.now()
 
         await interaction.followup.send(embed=embed)
 
@@ -244,7 +255,7 @@ async def slash_warn(interaction: discord.Interaction, member: discord.Member):
     await interaction.response.send_modal(modal)
 
 
-# ----------------- أمر إزالة التحذيرات الشامل (ينزع التحذير، التيم أوت، والرولات) -----------------
+# ----------------- أمر إزالة التحذيرات الشامل (حديث) -----------------
 
 @bot.tree.command(name="unwarn", description="إزالة التحذيرات عن عضو، رفع التيم أوت، ونزع رولات التحذير")
 @app_commands.checks.has_permissions(manage_messages=True)
@@ -276,14 +287,21 @@ async def slash_unwarn(interaction: discord.Interaction, member: discord.Member)
         print(f"فشل إزالة الرولات: {e}")
 
     embed = discord.Embed(
-        title="🧹 مسح التحذيرات الشامل",
-        description=f"تم تنظيف سجل العضو {member.mention} بنجاح!\n\n"
-                    f"• **تم حذف التحذيرات** وصفر العداد.\n"
-                    f"• **تم إزالة التيم أوت** (Timeout).\n"
-                    f"• **تم نزع رولات التحذير** ({removed_roles_count} رول).",
-        color=discord.Color.green()
+        title="🧹 تنظيف السجل • العفو وإزالة العقوبات",
+        description=f"تم إرجاع صفحة العضو {member.mention} نظيفة كلياً بنجاح!",
+        color=discord.Color.from_rgb(46, 204, 113) # لون أخضر أنيق
     )
-    embed.set_footer(text=f"بواسطة المشرف: {interaction.user.name}")
+    
+    embed.add_field(name="🗑️ مسح التحذيرات", value="تم تصفير العداد إلى `0`", inline=True)
+    embed.add_field(name="🔊 رفع التيم أوت", value="تم فك الحظر الصوتي/الكتابي", inline=True)
+    embed.add_field(name="🛡️ إزالة الرولات", value=f"تم سحب ({removed_roles_count}) رول إنذار", inline=True)
+
+    embed.set_thumbnail(url=member.display_avatar.url)
+    embed.set_footer(
+        text=f"بواسطة المشرف: {interaction.user.name}",
+        icon_url=interaction.user.display_avatar.url
+    )
+    embed.timestamp = datetime.datetime.now()
     
     await interaction.followup.send(embed=embed)
 
