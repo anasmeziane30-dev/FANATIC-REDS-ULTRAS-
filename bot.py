@@ -47,7 +47,7 @@ async def say(ctx, *, message: str):
     await ctx.message.delete()
     await ctx.send(message)
 
-# أمر إعطاء نقطة احترام مع اللوحة والصورة المخصصة
+# أمر إعطاء نقطة احترام مع ظهور صورة الأولتراس كخلفية كبيرة داخل اللوحة
 @bot.command(name='rep')
 async def rep(ctx, member: discord.Member):
     if member == ctx.author:
@@ -67,15 +67,15 @@ async def rep(ctx, member: discord.Member):
     
     db.commit()
     
-    # إنشاء اللوحة (Embed) مع النص المنظم وإضافة شعار الأولتراس
+    # إنشاء اللوحة (Embed)
     embed = discord.Embed(
         title="🌟 تفاعل مميز!",
         description=f"قام **{ctx.author.name}** بمنح نقطة تقدير لـ **{member.name}**\nرصيده الحالي: **{new_points}** نقطة.",
         color=discord.Color.red()
     )
     
-    # رابط الصورة التي أرسلتها لتظهر بشكل أنيق بجوار اللوحة
-    embed.set_thumbnail(url="https://i.imgur.com/8QZqK9R.jpeg")
+    # تعيين رابط الصورة لتظهر كخلفية كبيرة أسفل اللوحة
+    embed.set_image(url="https://i.imgur.com/2jCgm2F.png")
     
     await ctx.send(embed=embed)
 
