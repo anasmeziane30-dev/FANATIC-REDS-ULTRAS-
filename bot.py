@@ -30,7 +30,7 @@ cursor.execute('''
 ''')
 db.commit()
 
-# إعدادات البوت والصلاحيات
+# إعدادات البوت والصلاحيات (تفعيل intents.members ضروري جداً لكي يتعرف البوت على أعضاء السيرفر)
 intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
@@ -47,14 +47,13 @@ async def say(ctx, *, message: str):
     await ctx.message.delete()
     await ctx.send(message)
 
-# أمر إعطاء نقطة احترام مع ظهور صورة الأولتراس كخلفية كبيرة داخل اللوحة
+# أمر إعطاء نقطة احترام مع صورة الأولتراس كخلفية
 @bot.command(name='rep')
 async def rep(ctx, member: discord.Member):
     if member == ctx.author:
         await ctx.send("❌ لا يمكنك إعطاء نقطة لنفسك!")
         return
     
-    # تحديث النقاط في قاعدة البيانات
     cursor.execute('SELECT points FROM reputation WHERE user_id = ?', (member.id,))
     result = cursor.fetchone()
     
@@ -67,19 +66,16 @@ async def rep(ctx, member: discord.Member):
     
     db.commit()
     
-    # إنشاء اللوحة (Embed)
     embed = discord.Embed(
         title="🌟 تفاعل مميز!",
         description=f"قام **{ctx.author.name}** بمنح نقطة تقدير لـ **{member.name}**\nرصيده الحالي: **{new_points}** نقطة.",
         color=discord.Color.red()
     )
-    
-    # تعيين رابط الصورة لتظهر كخلفية كبيرة أسفل اللوحة
     embed.set_image(url="https://i.imgur.com/2jCgm2F.png")
     
     await ctx.send(embed=embed)
 
-# أمر لعرض عدد النقاط الخاصة بك أو بأي عضو
+# أمر لعرض عدد النقاط
 @bot.command(name='points')
 async def points(ctx, member: discord.Member = None):
     target = member or ctx.author
@@ -95,6 +91,47 @@ async def points(ctx, member: discord.Member = None):
         color=discord.Color.red()
     )
     await ctx.send(embed=embed)
+
+# أمر إداري جديد: إرسال رسالة في الخاص لجميع أعضاء السيرفر للمباريات أو القعدات
+@bot.command(name='notify')
+@commands.has_permissions(administrator=True)
+async def notify(ctx, *, message: str):
+    await ctx.message.delete()
+    
+    # إرسال رسالة تأكيد في القناة أن البوت بدأ بإرسال الرسائل
+    status_msg = await ctx.send("⏳ جاري إرسال الإشعار لجميع أعضاء السيرفر في الخاص...")
+    
+    success_count = 0
+    fail_count = 0
+    
+    # إنشاء اللوحة التي ستصل للأعضاء في الخاص
+    embed = discord.Embed(
+        title="🚨 تنبيه هام - Fanatic Reds",
+        description=message,
+        color=discord.Color.red()
+    )
+    embed.set_image(url="https://i.imgur.com/2jCgm2F.png")
+    
+    # المرور على كل عضو في السيرفر وإرسال الرسالة له
+    for member in ctx.guild.members:
+        if member.bot: # تجاهل البوتات لكي لا يرسل لها
+            continue
+        try:
+            await member.send(embed=embed)
+            success_count += 1
+        except discord.Forbidden:
+            # إذا كان العضو مقفل الخاص (DM closed)
+            fail_count + 1
+        except Exception as e:
+            fail_count += 1
+
+    await status_msg.edit(content=f"✅ تم إرسال الإشعار بنجاح إلى **{success_count}** عضواً. (فشل مع {fail_count} أعضاء بسبب إغلاق الخاص).")
+
+# معالجة خطأ الصلاحيات إذا حاول شخص عشوائي استخدام الأمر
+@notify.error
+async def notify_error(ctx, error):
+    if isinstance(error, commands.MissingPermissions):
+        await ctx.send("❌ عذراً، هذا الأمر مخصص للإدارة فقط!")
 
 keep_alive()
 TOKEN = os.environ.get('DISCORD_TOKEN')
