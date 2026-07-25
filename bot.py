@@ -30,7 +30,7 @@ cursor.execute('''
 ''')
 db.commit()
 
-# إعدادات البوت
+# إعدادات البوت والصلاحيات
 intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
@@ -47,14 +47,14 @@ async def say(ctx, *, message: str):
     await ctx.message.delete()
     await ctx.send(message)
 
-# أمر إعطاء نقطة احترام
+# أمر إعطاء نقطة احترام مع اللوحة والصورة المخصصة
 @bot.command(name='rep')
 async def rep(ctx, member: discord.Member):
     if member == ctx.author:
         await ctx.send("❌ لا يمكنك إعطاء نقطة لنفسك!")
         return
     
-    # تحديث أو إدخال النقاط في قاعدة البيانات
+    # تحديث النقاط في قاعدة البيانات
     cursor.execute('SELECT points FROM reputation WHERE user_id = ?', (member.id,))
     result = cursor.fetchone()
     
@@ -67,11 +67,16 @@ async def rep(ctx, member: discord.Member):
     
     db.commit()
     
+    # إنشاء اللوحة (Embed) مع النص المنظم وإضافة شعار الأولتراس
     embed = discord.Embed(
         title="🌟 تفاعل مميز!",
-        description=f"قام **{ctx.author.name}** بمنح نقطة تقدير لـ **{member.name}**!\nرصيده الحالي: **{new_points}** نقطة.",
-        color=discord.Color.gold()
+        description=f"قام **{ctx.author.name}** بمنح نقطة تقدير لـ **{member.name}**\nرصيده الحالي: **{new_points}** نقطة.",
+        color=discord.Color.red()
     )
+    
+    # رابط الصورة التي أرسلتها لتظهر بشكل أنيق بجوار اللوحة
+    embed.set_thumbnail(url="https://i.imgur.com/8QZqK9R.jpeg")
+    
     await ctx.send(embed=embed)
 
 # أمر لعرض عدد النقاط الخاصة بك أو بأي عضو
