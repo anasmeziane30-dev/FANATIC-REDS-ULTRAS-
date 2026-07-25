@@ -214,7 +214,16 @@ class WarnModal(discord.ui.Modal, title="إنشاء تحذير وعقوبة لع
         except Exception as e:
             print(f"❌ فشل إعطاء الرول: {e}")
 
-        # 4. إنشاء لوحة التحذير ونشرها
+        # 4. التحقق إذا وصل التحذير إلى 3 أو أكثر ليتم طرد العضو تلقائياً
+        kick_status = ""
+        if warn_num >= 3:
+            try:
+                await self.member.kick(reason=f"تخطي الحد الأقصى للتحذيرات (التحذير رقم {warn_num})")
+                kick_status = "\n• 🚨 **تم طرد العضو (Kick) تلقائياً لتجاوز الحد الأقصى للتحذيرات!**"
+            except Exception as e:
+                kick_status = f"\n• ❌ فشل طرد العضو (تأكد من صلاحيات البوت): {e}"
+
+        # 5. إنشاء لوحة التحذير ونشرها
         embed = discord.Embed(
             title=f"⚠️ avertissement رقم {warn_num:02d}",
             color=discord.Color.dark_embed()
@@ -224,7 +233,7 @@ class WarnModal(discord.ui.Modal, title="إنشاء تحذير وعقوبة لع
         embed.add_field(name="العقوبة (Punition)", value=self.punishment.value, inline=False)
         embed.add_field(name="مدة العقوبة (Durée de punition)", value=self.duration.value, inline=False)
         
-        embed.set_footer(text=f"بواسطة المشرف: {interaction.user.name} | تم تنفيذ العقوبة وإعطاء الرول تلقائياً")
+        embed.set_footer(text=f"بواسطة المشرف: {interaction.user.name} | تم تنفيذ العقوبة وإعطاء الرول تلقائياً{kick_status}")
 
         await interaction.followup.send(embed=embed)
 
