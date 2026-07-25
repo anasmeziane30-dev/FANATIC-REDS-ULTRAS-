@@ -30,7 +30,7 @@ cursor.execute('''
 ''')
 db.commit()
 
-# إعدادات البوت والصلاحيات (تفعيل intents.members ضروري جداً لكي يتعرف البوت على أعضاء السيرفر)
+# إعدادات البوت والصلاحيات
 intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
@@ -92,42 +92,36 @@ async def points(ctx, member: discord.Member = None):
     )
     await ctx.send(embed=embed)
 
-# أمر إداري جديد: إرسال رسالة في الخاص لجميع أعضاء السيرفر للمباريات أو القعدات
+# أمر إداري لإرسال الإشعار في الخاص مع منشن (Tag) لكل عضو
 @bot.command(name='notify')
 @commands.has_permissions(administrator=True)
 async def notify(ctx, *, message: str):
     await ctx.message.delete()
     
-    # إرسال رسالة تأكيد في القناة أن البوت بدأ بإرسال الرسائل
-    status_msg = await ctx.send("⏳ جاري إرسال الإشعار لجميع أعضاء السيرفر في الخاص...")
+    status_msg = await ctx.send("⏳ جاري إرسال الإشعار مع المنشن لجميع الأعضاء في الخاص...")
     
     success_count = 0
     fail_count = 0
     
-    # إنشاء اللوحة التي ستصل للأعضاء في الخاص
-    embed = discord.Embed(
-        title="🚨 تنبيه هام - Fanatic Reds",
-        description=message,
-        color=discord.Color.red()
-    )
-    embed.set_image(url="https://i.imgur.com/2jCgm2F.png")
-    
-    # المرور على كل عضو في السيرفر وإرسال الرسالة له
     for member in ctx.guild.members:
-        if member.bot: # تجاهل البوتات لكي لا يرسل لها
+        if member.bot:
             continue
         try:
+            # إنشاء لوحة خاصة لكل عضو تحتوي على المنشن الخاص به ورسالتك
+            embed = discord.Embed(
+                title="🚨 تنبيه هام - Fanatic Reds",
+                description=f"سلام عليكم {member.mention} 👋\n\n{message}",
+                color=discord.Color.red()
+            )
+            embed.set_image(url="https://i.imgur.com/2jCgm2F.png")
+            
             await member.send(embed=embed)
             success_count += 1
-        except discord.Forbidden:
-            # إذا كان العضو مقفل الخاص (DM closed)
-            fail_count + 1
-        except Exception as e:
+        except Exception:
             fail_count += 1
 
-    await status_msg.edit(content=f"✅ تم إرسال الإشعار بنجاح إلى **{success_count}** عضواً. (فشل مع {fail_count} أعضاء بسبب إغلاق الخاص).")
+    await status_msg.edit(content=f"✅ تم إرسال الإشعار بنجاح إلى **{success_count}** عضواً في الخاص مع التاغ.")
 
-# معالجة خطأ الصلاحيات إذا حاول شخص عشوائي استخدام الأمر
 @notify.error
 async def notify_error(ctx, error):
     if isinstance(error, commands.MissingPermissions):
