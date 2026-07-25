@@ -196,19 +196,23 @@ class WarnModal(discord.ui.Modal, title="إنشاء تحذير وعقوبة لع
             except Exception as e:
                 print(f"فشل تطبيق الـ Timeout: {e}")
 
-        # 3. إعطاء الرول تلقائياً بناءً على اسم الرول ورقم التحذير
+        # 3. إعطاء الرول تلقائياً بناءً على تنسيق السيرفر (Avertissement | 01, 02...)
         try:
-            role_name = f"avertissment {warn_num}"
-            role = discord.utils.get(interaction.guild.roles, name=role_name)
-            
-            if not role:
-                role_name_alt = f"avertissment{warn_num}"
-                role = discord.utils.get(interaction.guild.roles, name=role_name_alt)
+            role_name = f"Avertissement | {warn_num:02d}"
+            role_name_alt = f"Avertissement | {warn_num}"
+
+            role = None
+            for r in interaction.guild.roles:
+                if r.name.lower() in [role_name.lower(), role_name_alt.lower()]:
+                    role = r
+                    break
 
             if role:
                 await self.member.add_roles(role)
+            else:
+                print(f"⚠️ تنبيه: لم يتم العثور على رول بهذا الاسم: {role_name}")
         except Exception as e:
-            print(f"فشل إعطاء الرول: {e}")
+            print(f"❌ فشل إعطاء الرول: {e}")
 
         # 4. إنشاء لوحة التحذير ونشرها
         embed = discord.Embed(
@@ -231,7 +235,7 @@ async def slash_warn(interaction: discord.Interaction, member: discord.Member):
     await interaction.response.send_modal(modal)
 
 
-# ----------------- أمر إزالة التحذيرات (ينزع التحذير، التيم أوت، والرولات) -----------------
+# ----------------- أمر إزالة التحذيرات الشامل (ينزع التحذير، التيم أوت، والرولات) -----------------
 
 @bot.tree.command(name="unwarn", description="إزالة التحذيرات عن عضو، رفع التيم أوت، ونزع رولات التحذير")
 @app_commands.checks.has_permissions(manage_messages=True)
@@ -248,12 +252,12 @@ async def slash_unwarn(interaction: discord.Interaction, member: discord.Member)
     except Exception as e:
         print(f"فشل إزالة الـ Timeout: {e}")
     
-    # 3. إزالة جميع رولات التحذيرات (avertissment) التي امتلكها العضو
+    # 3. إزالة رولات التحذيرات التي تبدأ بـ "Avertissement"
     removed_roles_count = 0
     try:
         roles_to_remove = []
         for role in member.roles:
-            if "avertissment" in role.name.lower():
+            if "avertissement" in role.name.lower():
                 roles_to_remove.append(role)
         
         if roles_to_remove:
