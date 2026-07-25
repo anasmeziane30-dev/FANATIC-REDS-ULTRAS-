@@ -18,7 +18,7 @@ def keep_alive():
     t = Thread(target=run)
     t.start()
 
-# إعدادات البوت والصلاحيات (تأكد من تفعيلها من موقع ديسكورد)
+# إعدادات البوت والصلاحيات
 intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
@@ -30,11 +30,25 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 async def on_ready():
     print(f'Logged in as {bot.user.name}')
 
-# أمر التكرار (لتجربة استجابة البوت)
+# أمر التكرار الأساسي
 @bot.command(name='say')
 async def say(ctx, *, message: str):
-    await ctx.message.delete() # لحذف رسالتك وإظهار الرسالة نظيفة
+    await ctx.message.delete()
     await ctx.send(message)
+
+# أمر إعطاء نقطة تفاعل/احترام (التي اخترناها)
+@bot.command(name='rep')
+async def rep(ctx, member: discord.Member):
+    if member == ctx.author:
+        await ctx.send("❌ لا يمكنك إعطاء نقطة لنفسك!")
+        return
+    
+    embed = discord.Embed(
+        title="🌟 تفاعل مميز!",
+        description=f"قام **{ctx.author.name}** بمنح نقطة تقدير/احترام لـ **{member.name}**!",
+        color=discord.Color.gold()
+    )
+    await ctx.send(embed=embed)
 
 # تشغيل خادم الويب والبوت بشكل آمن
 keep_alive()
