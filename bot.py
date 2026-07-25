@@ -130,7 +130,7 @@ async def notify(ctx, *, message: str):
     await status_msg.edit(content=f"✅ تم إرسال الإشعار بنجاح إلى **{success_count}** عضواً في الخاص.")
 
 
-# ----------------- نظام التحذيرات مع التنفيذ التلقائي للعقوبة -----------------
+# ----------------- نظام التحذيرات التفاعلي -----------------
 
 class WarnModal(discord.ui.Modal, title="إنشاء تحذير وعقوبة لعضو"):
     def __init__(self, member: discord.Member):
@@ -154,7 +154,7 @@ class WarnModal(discord.ui.Modal, title="إنشاء تحذير وعقوبة لع
 
     duration = discord.ui.TextInput(
         label="مدة العقوبة (Durée)",
-        placeholder="مثال: 24h",
+        placeholder="مثال: 30m أو 24h",
         default="24h",
         style=discord.TextStyle.short,
         required=True
@@ -163,22 +163,7 @@ class WarnModal(discord.ui.Modal, title="إنشاء تحذير وعقوبة لع
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(thinking=True)
         
-        # 1. تنفيذ العقوبة تلقائياً
-        punishment_text = self.punishment.value.lower()
-        duration_text = self.duration.value.lower()
-        
-        if "timeout" in punishment_text or "mute" in punishment_text:
-            try:
-                hours = 24
-                if 'h' in duration_text:
-                    hours = int(duration_text.replace('h', '').strip())
-                
-                delta = datetime.timedelta(hours=hours)
-                await self.member.timeout(delta, reason=self.reason.value)
-            except Exception:
-                pass
-
-        # 2. حساب رقم التحذير من قاعدة البيانات
+        # 1. حساب رقم التحذير الجديد للعضو من قاعدة البيانات
         cursor.execute('SELECT count FROM warnings WHERE user_id = ?', (self.member.id,))
         result = cursor.fetchone()
         
@@ -191,7 +176,41 @@ class WarnModal(discord.ui.Modal, title="إنشاء تحذير وعقوبة لع
         
         db.commit()
 
-        # 3. إنشاء لوحة التحذير ونشرها
+        # 2. تنفيذ عقوبة الـ Timeout تلقائياً
+        punishment_text = self.punishment.value.lower()
+        duration_text = self.duration.value.lower()
+        
+        if "timeout" in punishment_text or "mute" in punishment_text:
+            try:
+                hours = 0
+                minutes = 0
+                if 'h' in duration_text:
+                    hours = int(duration_text.replace('h', '').strip())
+                if 'm' in duration_text:
+                    minutes = int(duration_text.replace('m', '').strip())
+                if 'h' not in duration_text and 'm' not in duration_text:
+                    hours = int(duration_text.strip())
+
+                delta = datetime.timedelta(hours=hours, minutes=minutes)
+                await self.member.timeout(delta, reason=self.reason.value)
+            except Exception as e:
+                print(f"فشل تطبيق الـ Timeout: {e}")
+
+        # 3. إعطاء الرول تلقائياً بناءً على اسم الرول ورقم التحذير
+        try:
+            role_name = f"avertissment {warn_num}"
+            role = discord.utils.get(interaction.guild.roles, name=role_name)
+            
+            if not role:
+                role_name_alt = f"avertissment{warn_num}"
+                role = discord.utils.get(interaction.guild.roles, name=role_name_alt)
+
+            if role:
+                await self.member.add_roles(role)
+        except Exception as e:
+            print(f"فشل إعطاء الرول: {e}")
+
+        # 4. إنشاء لوحة التحذير ونشرها
         embed = discord.Embed(
             title=f"⚠️ avertissement رقم {warn_num:02d}",
             color=discord.Color.dark_embed()
@@ -201,15 +220,60 @@ class WarnModal(discord.ui.Modal, title="إنشاء تحذير وعقوبة لع
         embed.add_field(name="العقوبة (Punition)", value=self.punishment.value, inline=False)
         embed.add_field(name="مدة العقوبة (Durée de punition)", value=self.duration.value, inline=False)
         
-        embed.set_footer(text=f"بواسطة المشرف: {interaction.user.name} | تم تنفيذ العقوبة تلقائياً")
+        embed.set_footer(text=f"بواسطة المشرف: {interaction.user.name} | تم تنفيذ العقوبة وإعطاء الرول تلقائياً")
 
         await interaction.followup.send(embed=embed)
 
-@bot.tree.command(name="warn", description="إرسال تحذير وتنفيذ العقوبة تلقائياً لعضو")
+@bot.tree.command(name="warn", description="إرسال تحذير وتطبيق العقوبة وإعطاء الرول تلقائياً لعضو")
 @app_commands.checks.has_permissions(manage_messages=True)
 async def slash_warn(interaction: discord.Interaction, member: discord.Member):
     modal = WarnModal(member=member)
     await interaction.response.send_modal(modal)
+
+
+# ----------------- أمر إزالة التحذيرات (ينزع التحذير، التيم أوت، والرولات) -----------------
+
+@bot.tree.command(name="unwarn", description="إزالة التحذيرات عن عضو، رفع التيم أوت، ونزع رولات التحذير")
+@app_commands.checks.has_permissions(manage_messages=True)
+async def slash_unwarn(interaction: discord.Interaction, member: discord.Member):
+    await interaction.response.defer(thinking=True)
+    
+    # 1. حذف التحذير من قاعدة البيانات
+    cursor.execute('DELETE FROM warnings WHERE user_id = ?', (member.id,))
+    db.commit()
+    
+    # 2. إزالة الـ Timeout
+    try:
+        await member.timeout(None, reason="تمت إزالة التحذيرات بواسطة المشرف")
+    except Exception as e:
+        print(f"فشل إزالة الـ Timeout: {e}")
+    
+    # 3. إزالة جميع رولات التحذيرات (avertissment) التي امتلكها العضو
+    removed_roles_count = 0
+    try:
+        roles_to_remove = []
+        for role in member.roles:
+            if "avertissment" in role.name.lower():
+                roles_to_remove.append(role)
+        
+        if roles_to_remove:
+            await member.remove_roles(*roles_to_remove)
+            removed_roles_count = len(roles_to_remove)
+    except Exception as e:
+        print(f"فشل إزالة الرولات: {e}")
+
+    embed = discord.Embed(
+        title="🧹 مسح التحذيرات الشامل",
+        description=f"تم تنظيف سجل العضو {member.mention} بنجاح!\n\n"
+                    f"• **تم حذف التحذيرات** وصفر العداد.\n"
+                    f"• **تم إزالة التيم أوت** (Timeout).\n"
+                    f"• **تم نزع رولات التحذير** ({removed_roles_count} رول).",
+        color=discord.Color.green()
+    )
+    embed.set_footer(text=f"بواسطة المشرف: {interaction.user.name}")
+    
+    await interaction.followup.send(embed=embed)
+
 
 keep_alive()
 TOKEN = os.environ.get('DISCORD_TOKEN')
