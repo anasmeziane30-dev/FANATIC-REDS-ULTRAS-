@@ -2,6 +2,7 @@ import os
 import sqlite3
 import datetime
 import discord
+from discord import app_commands
 from discord.ext import commands
 from flask import Flask
 from threading import Thread
@@ -49,6 +50,11 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user.name}')
+    try:
+        synced = await bot.tree.sync()
+        print(f"Synced {len(synced)} slash commands.")
+    except Exception as e:
+        print(e)
 
 @bot.command(name='say')
 async def say(ctx, *, message: str):
@@ -148,7 +154,7 @@ class WarnModal(discord.ui.Modal, title="إنشاء تحذير وعقوبة لع
 
     duration = discord.ui.TextInput(
         label="مدة العقوبة (Durée)",
-        placeholder="مثال: 24h (أو اكتب 0 إذا لم تقم بتفعيل التايم آوت)",
+        placeholder="مثال: 24h",
         default="24h",
         style=discord.TextStyle.short,
         required=True
@@ -157,26 +163,20 @@ class WarnModal(discord.ui.Modal, title="إنشاء تحذير وعقوبة لع
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(thinking=True)
         
-        # 1. تنفيذ العقوبة تلقائياً إذا كانت Timeout
+        # 1. تنفيذ العقوبة تلقائياً
         punishment_text = self.punishment.value.lower()
         duration_text = self.duration.value.lower()
         
         if "timeout" in punishment_text or "mute" in punishment_text:
             try:
-                # تحويل المدة (دعم الساعات مثل 24h أو الدقائق مثل 30m)
-                hours = 0
-                minutes = 0
+                hours = 24
                 if 'h' in duration_text:
                     hours = int(duration_text.replace('h', '').strip())
-                elif 'm' in duration_text:
-                    minutes = int(duration_text.replace('m', '').strip())
-                else:
-                    hours = 24 # افتراضي إذا لم يتم كتابة الوحدة
                 
-                delta = datetime.timedelta(hours=hours, minutes=minutes)
+                delta = datetime.timedelta(hours=hours)
                 await self.member.timeout(delta, reason=self.reason.value)
-            except Exception as e:
-                pass # في حال لم تكن صلاحيات البوت كافية لمعاقبة العضو
+            except Exception:
+                pass
 
         # 2. حساب رقم التحذير من قاعدة البيانات
         cursor.execute('SELECT count FROM warnings WHERE user_id = ?', (self.member.id,))
