@@ -63,8 +63,6 @@ async def on_ready():
     except Exception as e:
         print(e)
 
-active_guess_games = {}
-
 @bot.event
 async def on_message(message):
     if message.author.bot:
@@ -81,41 +79,7 @@ async def on_message(message):
         except:
             pass
 
-    # 2. فحص إجابة لعبة تخمين اللاعب
-    if message.channel.id in active_guess_games:
-        game_data = active_guess_games[message.channel.id]
-        accepted_answers = game_data["answers"]
-        user_text = message.content.lower().strip()
-        
-        matched = False
-        if len(user_text) >= 3:
-            for ans in accepted_answers:
-                if user_text in ans:
-                    matched = True
-                    break
-        
-        if matched:
-            winner = message.author
-            
-            cursor.execute('SELECT points FROM reputation WHERE user_id = ?', (winner.id,))
-            result = cursor.fetchone()
-            if result is None:
-                new_points = 3
-                cursor.execute('INSERT INTO reputation (user_id, points) VALUES (?, ?)', (winner.id, new_points))
-            else:
-                new_points = result[0] + 3
-                cursor.execute('UPDATE reputation SET points = ? WHERE user_id = ?', (new_points, winner.id))
-            db.commit()
-
-            embed = discord.Embed(
-                title="🎉 مبروك الفوز!",
-                description=f"الإجابة صحيحة يا {winner.mention}! اللاعب هو **{game_data['display_name']}**.\n🏆 لقد ربحت **3 نقاط تقدير** إضافية!",
-                color=discord.Color.green()
-            )
-            await message.reply(embed=embed)
-            del active_guess_games[message.channel.id]
-
-    # 3. الرد عند منشن الشخص الغائب
+    # 2. الرد عند منشن الشخص الغائب
     if message.mentions:
         for member in message.mentions:
             cursor.execute('SELECT reason, time FROM afk_system WHERE user_id = ?', (member.id,))
@@ -126,8 +90,71 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
+# أوامر العادية (Prefix Commands)
+@bot.command(name='say')
+async def say(ctx, *, message: str):
+    await ctx.message.delete()
+    await ctx.send(message)
 
-# ----------------- نظام التحذيرات -----------------
+@bot.command(name='rep')
+async def rep(ctx, member: discord.Member):
+    if member == ctx.author:
+        await ctx.send("❌ لا يمكنك إعطاء نقطة لنفسك!")
+        return
+    
+    cursor.execute('SELECT points FROM reputation WHERE user_id = ?', (member.id,))
+    result = cursor.fetchone()
+    
+    if result is None:
+        new_points = 1
+        cursor.execute('INSERT INTO reputation (user_id, points) VALUES (?, ?)', (member.id, new_points))
+    else:
+        new_points = result[0] + 1
+        cursor.execute('UPDATE reputation SET points = ? WHERE user_id = ?', (new_points, member.id))
+    
+    db.commit()
+    
+    embed = discord.Embed(
+        title="🌟 تفاعل مميز!",
+        description=f"قام **{ctx.author.name}** بمنح نقطة تقدير لـ **{member.name}**\nرصيده الحالي: **{new_points}** نقطة.",
+        color=discord.Color.blue()
+    )
+    await ctx.send(embed=embed)
+
+@bot.command(name='points')
+async def points(ctx, member: discord.Member = None):
+    target = member or ctx.author
+    cursor.execute('SELECT points FROM reputation WHERE user_id = ?', (target.id,))
+    result = cursor.fetchone()
+    user_points = result[0] if result else 0
+    
+    embed = discord.Embed(
+        title="📊 رصيد نقاط التقدير",
+        description=f"العضو **{target.name}** لديه **{user_points}** نقطة احترام.",
+        color=discord.Color.blue()
+    )
+    await ctx.send(embed=embed)
+
+
+# ----------------- أشرطة الأوامر السلاش (Slash Commands) -----------------
+
+@bot.tree.command(name="afk", description="تسجيل أنك غائب عن الجهاز (AFK)")
+@app_commands.describe(reason="سبب الغياب (اختياري)")
+async def slash_afk(interaction: discord.Interaction, reason: str = "غير متواجد حالياً"):
+    cursor.execute('INSERT OR REPLACE INTO afk_system (user_id, reason, time) VALUES (?, ?, ?)', 
+                   (interaction.user.id, reason, datetime.datetime.now()))
+    db.commit()
+
+    embed = discord.Embed(
+        title="💤 وضع الغياب (AFK)",
+        description=f"تم تفعيل حالة الـ AFK بنجاح لعضونا {interaction.user.mention}.\n📌 السبب: **{reason}**",
+        color=discord.Color.orange()
+    )
+    embed.set_footer(text="سيتم إزالة حالتك تلقائياً بمجرد إرسالك لأي رسالة.")
+    await interaction.response.send_message(embed=embed)
+
+
+# نظام التحذيرات
 class WarnModal(discord.ui.Modal, title="إنشاء تحذير جديد"):
     def __init__(self, member: discord.Member):
         super().__init__()
@@ -169,7 +196,6 @@ class WarnModal(discord.ui.Modal, title="إنشاء تحذير جديد"):
         
         db.commit()
 
-        # تطبيق التيم أوت
         punishment_text = self.punishment.value.lower()
         duration_text = self.duration.value.lower()
         if "timeout" in punishment_text or "mute" in punishment_text:
@@ -213,12 +239,33 @@ async def slash_warn(interaction: discord.Interaction, member: discord.Member):
     await interaction.response.send_modal(modal)
 
 
-# ----------------- تعليمة /accepté المعدلة للرتب -----------------
+@bot.tree.command(name="unwarn", description="إزالة التحذيرات عن عضو ورفع العقوبات")
+@app_commands.checks.has_permissions(manage_messages=True)
+async def slash_unwarn(interaction: discord.Interaction, member: discord.Member):
+    await interaction.response.defer(thinking=True)
+    cursor.execute('DELETE FROM warnings WHERE user_id = ?', (member.id,))
+    db.commit()
+    try:
+        await member.timeout(None, reason="إزالة التحذيرات")
+    except Exception:
+        pass
+    
+    embed = discord.Embed(
+        title="🧹 ══════════ [ إزالة التحذيرات والعقوبات ] ══════════ 🧹",
+        description=f"  👤 **العضو المستهدف:** {member.mention}\n  ✨ **الحالة:** تم تنظيف السجل ورفع التيم أوت بنجاح.",
+        color=discord.Color.from_rgb(138, 43, 226)
+    )
+    embed.set_footer(text=f"بواسطة المشرف: {interaction.user.name}")
+    await interaction.followup.send(embed=embed)
+
+
+# أمر /accepté الجديد (رسالة نصية سرية لك وحدك وتعديل الرتب)
 @bot.tree.command(name="accepté", description="قبول العضو، سحب رول Nv | Persone وإعطائه رول Member Fanatic")
 @app_commands.describe(member="العضو المراد قبوله")
 @app_commands.checks.has_permissions(manage_roles=True)
 async def slash_accepted(interaction: discord.Interaction, member: discord.Member):
-    await interaction.response.defer(thinking=True)
+    # ephemeral=True تعني أن الرد يظهر لك وحدك ولا يراه أحد
+    await interaction.response.defer(ephemeral=True)
 
     role_remove_name = "Nv | Persone"
     role_add_name = "Member Fanatic"
@@ -226,41 +273,25 @@ async def slash_accepted(interaction: discord.Interaction, member: discord.Membe
     removed_status = "❌ لم يتم العثور على رول Nv | Persone"
     added_status = "❌ لم يتم العثور على رول Member Fanatic"
 
-    # البحث عن رول السحب وإزالته
     role_to_remove = discord.utils.get(interaction.guild.roles, name=role_remove_name)
     if role_to_remove and role_to_remove in member.roles:
         try:
             await member.remove_roles(role_to_remove)
-            removed_status = f"✅ تم إزالة رول `{role_remove_name}`"
+            removed_status = f"تم إزالة رول {role_remove_name}"
         except Exception as e:
-            removed_status = f"⚠️ فشل إزالة الرول: {e}"
+            removed_status = f"فشل إزالة الرول: {e}"
 
-    # البحث عن رول الإضافة ومنحه للعضو
     role_to_add = discord.utils.get(interaction.guild.roles, name=role_add_name)
     if role_to_add:
         try:
             await member.add_roles(role_to_add)
-            added_status = f"✅ تم منح رول `{role_add_name}`"
+            added_status = f"تم منح رول {role_add_name}"
         except Exception as e:
-            added_status = f"⚠️ فشل منح الرول: {e}"
+            added_status = f"فشل منح الرول: {e}"
 
-    embed = discord.Embed(
-        title="✨ ═══════════ [  𝑨𝑪𝑪𝑬𝑷𝑻É ] ═══════════ ✨",
-        description="╭──────────────────────────────────────────────────────────────╮\n"
-                    f"  👤 **العضو المقبول:** {member.mention}\n"
-                    f"  🎉 **الحالة:** تم قبول انضمامك .\n\n"
-                    
-                
-                    "╰──────────────────────────────────────────────────────────────╯",
-        color=discord.Color.from_rgb(46, 204, 113)
-    )
-    embed.set_footer(
-        text=f"بواسطة الإدارة: {interaction.user.name}",
-        icon_url=interaction.user.display_avatar.url
-    )
-    embed.timestamp = datetime.datetime.now()
+    result_message = f"تم قبول العضو {member.mention} بنجاح ✅\n- {removed_status}\n- {added_status}"
 
-    await interaction.followup.send(content=f"مبروك {member.mention}! 🎊", embed=embed)
+    await interaction.followup.send(result_message, ephemeral=True)
 
 
 keep_alive()
