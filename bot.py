@@ -63,12 +63,44 @@ async def on_ready():
     except Exception as e:
         print(e)
 
+# ----------------- الأحداث التلقائية -----------------
+
+@bot.event
+async def on_member_join(member):
+    # إعطاء رول Nv | Persone تلقائياً عند دخول السيرفر
+    default_role = discord.utils.get(member.guild.roles, name="Nv | Persone")
+    if default_role:
+        try:
+            await member.add_roles(default_role)
+        except:
+            pass
+
 @bot.event
 async def on_message(message):
     if message.author.bot:
         return
 
-    # 1. نظام الـ AFK التلقائي
+    content = message.content.lower().strip()
+
+    # 1. نظام الردود التلقائية (Auto-Responder)
+    if "السلام عليكم" in content or "سَلام عليكم" in content or "salam" in content:
+        await message.reply(f"وعليكم السلام ورحمة الله وبركاته، أنرت السيرفر يا {message.author.mention}! 💜")
+    elif "قوانين" in content or "الوانين" in content:
+        await message.channel.send(f"📌 يرجى احترام قوانين السيرفر لتجنب العقوبات يا {message.author.mention}.")
+    elif "دعم" in content or "support" in content:
+        await message.channel.send(f"🛠️ يمكنك فتح تذكرة أو طلب المساعدة من الإدارة يا {message.author.mention}.")
+
+    # 2. نظام حماية الشات من الروابط
+    if ("http://" in message.content or "https://" in message.content or "discord.gg/" in message.content):
+        if not message.author.guild_permissions.manage_messages:
+            try:
+                await message.delete()
+                await message.channel.send(f"⚠️ ممنوع إرسال الروابط هنا يا {message.author.mention}!", delete_after=5)
+                return
+            except:
+                pass
+
+    # 3. نظام الـ AFK التلقائي
     cursor.execute('SELECT * FROM afk_system WHERE user_id = ?', (message.author.id,))
     afk_data = cursor.fetchone()
     if afk_data:
@@ -79,7 +111,7 @@ async def on_message(message):
         except:
             pass
 
-    # 2. الرد عند منشن الشخص الغائب
+    # 4. الرد عند منشن الشخص الغائب
     if message.mentions:
         for member in message.mentions:
             cursor.execute('SELECT reason, time FROM afk_system WHERE user_id = ?', (member.id,))
@@ -152,6 +184,20 @@ async def slash_afk(interaction: discord.Interaction, reason: str = "غير مت
     )
     embed.set_footer(text="سيتم إزالة حالتك تلقائياً بمجرد إرسالك لأي رسالة.")
     await interaction.response.send_message(embed=embed)
+
+
+# أمر مسح الرسائل السريع للمشرفين
+@bot.tree.command(name="clear", description="مسح عدد محدد من الرسائل في الشات")
+@app_commands.describe(amount="عدد الرسائل المراد مسحها")
+@app_commands.checks.has_permissions(manage_messages=True)
+async def slash_clear(interaction: discord.Interaction, amount: int):
+    if amount <= 0:
+        await interaction.response.send_message("❌ يجب تحديد رقم أكبر من صفر!", ephemeral=True)
+        return
+
+    await interaction.response.defer(ephemeral=True)
+    deleted = await interaction.channel.purge(limit=amount)
+    await interaction.followup.send(f"✅ تم مسح `{len(deleted)}` رسالة بنجاح.", ephemeral=True)
 
 
 # نظام التحذيرات
@@ -259,7 +305,7 @@ async def slash_unwarn(interaction: discord.Interaction, member: discord.Member)
     await interaction.followup.send(embed=embed)
 
 
-# أمر /accepté المحدث بالتحقق من وجود الرول ورسالة سرية (Ephemeral)
+# أمر /accepté مع التحقق من وجود رول Member Fanatic ورسالة سرية (Ephemeral)
 @bot.tree.command(name="accepté", description="قبول العضو، سحب رول Nv | Persone وإعطائه رول Member Fanatic")
 @app_commands.describe(member="العضو المراد قبوله")
 @app_commands.checks.has_permissions(manage_roles=True)
@@ -271,7 +317,6 @@ async def slash_accepted(interaction: discord.Interaction, member: discord.Membe
 
     role_to_add = discord.utils.get(interaction.guild.roles, name=role_add_name)
     
-    # فحص ما إذا كان العضو يملك الرول مسبقاً
     if role_to_add and role_to_add in member.roles:
         await interaction.followup.send(f"العضو {member.mention} مقبول من قبل ✅", ephemeral=True)
         return
@@ -279,7 +324,6 @@ async def slash_accepted(interaction: discord.Interaction, member: discord.Membe
     removed_status = "❌ لم يتم العثور على رول Nv | Persone"
     added_status = "❌ لم يتم العثور على رول Member Fanatic"
 
-    # سحب الرول القديم
     role_to_remove = discord.utils.get(interaction.guild.roles, name=role_remove_name)
     if role_to_remove and role_to_remove in member.roles:
         try:
@@ -288,7 +332,6 @@ async def slash_accepted(interaction: discord.Interaction, member: discord.Membe
         except Exception as e:
             removed_status = f"فشل إزالة الرول: {e}"
 
-    # منح الرول الجديد
     if role_to_add:
         try:
             await member.add_roles(role_to_add)
