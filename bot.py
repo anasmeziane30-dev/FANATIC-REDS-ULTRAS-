@@ -7,7 +7,6 @@ from discord.ext import commands
 from flask import Flask
 from threading import Thread
 
-# إعداد خادم الويب للحفاظ على البوت مستيقظاً 24/7
 app = Flask('')
 
 @app.route('/')
@@ -21,7 +20,6 @@ def keep_alive():
     t = Thread(target=run)
     t.start()
 
-# إعداد قاعدة البيانات لحفظ نقاط الاحترام والتحذيرات
 db = sqlite3.connect('points.db')
 cursor = db.cursor()
 
@@ -36,6 +34,14 @@ cursor.execute('''
     CREATE TABLE IF NOT EXISTS warnings (
         user_id INTEGER PRIMARY KEY,
         count INTEGER
+    )
+''')
+
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS afk_system (
+        user_id INTEGER PRIMARY KEY,
+        reason TEXT,
+        time TIMESTAMP
     )
 ''')
 db.commit()
@@ -56,12 +62,37 @@ async def on_ready():
     except Exception as e:
         print(e)
 
+# ----------------- نظام الكشف التلقائي للـ AFK -----------------
+@bot.event
+async def on_message(message):
+    if message.author.bot:
+        return
+
+    cursor.execute('SELECT * FROM afk_system WHERE user_id = ?', (message.author.id,))
+    afk_data = cursor.fetchone()
+    if afk_data:
+        cursor.execute('DELETE FROM afk_system WHERE user_id = ?', (message.author.id,))
+        db.commit()
+        try:
+            await message.reply(f"Welcome back {message.author.mention}! لقد تم إزالة حالة الـ AFK عنك.", delete_after=5)
+        except:
+            pass
+
+    if message.mentions:
+        for member in message.mentions:
+            cursor.execute('SELECT reason, time FROM afk_system WHERE user_id = ?', (member.id,))
+            result = cursor.fetchone()
+            if result:
+                reason, start_time = result
+                await message.channel.send(f"💤 العضو {member.mention} غائب حالياً (AFK).\n📌 السبب: **{reason}**", delete_after=10)
+
+    await bot.process_commands(message)
+
 @bot.command(name='say')
 async def say(ctx, *, message: str):
     await ctx.message.delete()
     await ctx.send(message)
 
-# أمر إعطاء نقطة احترام
 @bot.command(name='rep')
 async def rep(ctx, member: discord.Member):
     if member == ctx.author:
@@ -83,13 +114,11 @@ async def rep(ctx, member: discord.Member):
     embed = discord.Embed(
         title="🌟 تفاعل مميز!",
         description=f"قام **{ctx.author.name}** بمنح نقطة تقدير لـ **{member.name}**\nرصيده الحالي: **{new_points}** نقطة.",
-        color=discord.Color.red()
+        color=discord.Color.blue()
     )
     embed.set_thumbnail(url="https://i.imgur.com/2jCgm2F.png")
-    
     await ctx.send(embed=embed)
 
-# أمر لعرض نقاط التقدير
 @bot.command(name='points')
 async def points(ctx, member: discord.Member = None):
     target = member or ctx.author
@@ -98,18 +127,17 @@ async def points(ctx, member: discord.Member = None):
     user_points = result[0] if result else 0
     
     embed = discord.Embed(
-        title=f"📊 رصيد نقاط التقدير",
+        title="📊 رصيد نقاط التقدير",
         description=f"العضو **{target.name}** لديه **{user_points}** نقطة احترام.",
-        color=discord.Color.red()
+        color=discord.Color.blue()
     )
     await ctx.send(embed=embed)
 
-# أمر الإشعار العام في الخاص
 @bot.command(name='notify')
 @commands.has_permissions(administrator=True)
 async def notify(ctx, *, message: str):
     await ctx.message.delete()
-    status_msg = await ctx.send("⏳ جاري إرسال الإشعار مع المنشن لجميع الأعضاء في الخاص...")
+    status_msg = await ctx.send("⏳ جاري إرسال الإشعار لجميع الأعضاء في الخاص...")
     
     success_count = 0
     for member in ctx.guild.members:
@@ -119,7 +147,7 @@ async def notify(ctx, *, message: str):
             embed = discord.Embed(
                 title="🚨 تنبيه هام - Fanatic Reds",
                 description=f"سلام عليكم {member.mention} 👋\n\n{message}",
-                color=discord.Color.red()
+                color=discord.Color.blue()
             )
             embed.set_image(url="https://i.imgur.com/2jCgm2F.png")
             await member.send(embed=embed)
@@ -127,34 +155,46 @@ async def notify(ctx, *, message: str):
         except Exception:
             pass
 
-    await status_msg.edit(content=f"✅ تم إرسال الإشعار بنجاح إلى **{success_count}** عضواً في الخاص.")
+    await status_msg.edit(content=f"✅ تم إرسال الإشعار بنجاح إلى **{success_count}** عضواً.")
 
+@bot.tree.command(name="afk", description="تسجيل أنك غائب عن الجهاز (AFK)")
+@app_commands.describe(reason="سبب الغياب (اختياري)")
+async def slash_afk(interaction: discord.Interaction, reason: str = "غير متواجد حالياً"):
+    cursor.execute('INSERT OR REPLACE INTO afk_system (user_id, reason, time) VALUES (?, ?, ?)', 
+                   (interaction.user.id, reason, datetime.datetime.now()))
+    db.commit()
 
-# ----------------- نظام التحذيرات التفاعلي (بلوحة حديثة) -----------------
+    embed = discord.Embed(
+        title="💤 وضع الغياب (AFK)",
+        description=f"تم تفعيل حالة الـ AFK بنجاح لعضونا {interaction.user.mention}.\n📌 السبب: **{reason}**",
+        color=discord.Color.orange()
+    )
+    embed.set_footer(text="سيتم إزالة حالتك تلقائياً بمجرد إرسالك لأي رسالة.")
+    await interaction.response.send_message(embed=embed)
 
-class WarnModal(discord.ui.Modal, title="إنشاء تحذير وعقوبة لعضو"):
+# ----------------- نظام التحذيرات (Embed فخم ونظيف) -----------------
+
+class WarnModal(discord.ui.Modal, title="إنشاء تحذير جديد"):
     def __init__(self, member: discord.Member):
         super().__init__()
         self.member = member
 
     reason = discord.ui.TextInput(
-        label="السبب (La raison)",
+        label="السبب",
         placeholder="اكتب سبب التحذير هنا...",
         style=discord.TextStyle.short,
         required=True
     )
     
     punishment = discord.ui.TextInput(
-        label="العقوبة (Punition)",
-        placeholder="اكتب نوع العقوبة (مثال: Timeout)",
+        label="العقوبة",
         default="Timeout",
         style=discord.TextStyle.short,
         required=True
     )
 
     duration = discord.ui.TextInput(
-        label="مدة العقوبة (Durée)",
-        placeholder="مثال: 30m أو 24h",
+        label="مدة العقوبة",
         default="24h",
         style=discord.TextStyle.short,
         required=True
@@ -163,7 +203,6 @@ class WarnModal(discord.ui.Modal, title="إنشاء تحذير وعقوبة لع
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(thinking=True)
         
-        # 1. حساب رقم التحذير الجديد للعضو من قاعدة البيانات
         cursor.execute('SELECT count FROM warnings WHERE user_id = ?', (self.member.id,))
         result = cursor.fetchone()
         
@@ -176,7 +215,6 @@ class WarnModal(discord.ui.Modal, title="إنشاء تحذير وعقوبة لع
         
         db.commit()
 
-        # 2. تنفيذ عقوبة الـ Timeout تلقائياً
         punishment_text = self.punishment.value.lower()
         duration_text = self.duration.value.lower()
         
@@ -194,9 +232,8 @@ class WarnModal(discord.ui.Modal, title="إنشاء تحذير وعقوبة لع
                 delta = datetime.timedelta(hours=hours, minutes=minutes)
                 await self.member.timeout(delta, reason=self.reason.value)
             except Exception as e:
-                print(f"فشل تطبيق الـ Timeout: {e}")
+                print(f"فشل الـ Timeout: {e}")
 
-        # 3. إعطاء الرول تلقائياً بناءً على تنسيق السيرفر (Avertissement | 01, 02...)
         try:
             role_name = f"Avertissement | {warn_num:02d}"
             role_name_alt = f"Avertissement | {warn_num}"
@@ -209,94 +246,71 @@ class WarnModal(discord.ui.Modal, title="إنشاء تحذير وعقوبة لع
 
             if role:
                 await self.member.add_roles(role)
-            else:
-                print(f"⚠️ تنبيه: لم يتم العثور على رول بهذا الاسم: {role_name}")
         except Exception as e:
-            print(f"❌ فشل إعطاء الرول: {e}")
+            print(f"فشل إعطاء الرول: {e}")
 
-        # 4. التحقق إذا وصل التحذير إلى 3 أو أكثر ليتم طرد العضو تلقائياً
         kick_status = ""
         if warn_num >= 3:
             try:
-                await self.member.kick(reason=f"تخطي الحد الأقصى للتحذيرات (التحذير رقم {warn_num})")
-                kick_status = "🚪 **تم الطرد تلقائياً (تجاوز الحد الأقصى)**"
+                await self.member.kick(reason="تجاوز الحد الأقصى للتحذيرات")
+                kick_status = "\n\n🚨 **[إجراء تلقائي]: تم طرد العضو (Kick) لتخطيه 3 تحذيرات!**"
             except Exception as e:
-                kick_status = f"❌ فشل الطرد: {e}"
+                kick_status = f"\n\n❌ **فشل الطرد:** {e}"
 
-        # 5. تصميم لوحة التحذير الحديثة والعصرية (Modern Embed)
         embed = discord.Embed(
-            title="⚡ نظام التحذيرات الذكي • Avertissement",
-            description=f"لقد تم تسجيل مخالفة بحق العضو وإتخاذ الإجراء اللازم ضده.",
-            color=discord.Color.from_rgb(231, 76, 60) # لون أحمر عصري فخم
+            title=f"Avertissement | {warn_num:02d}",
+            color=discord.Color.from_rgb(20, 50, 120)
         )
         
-        embed.add_field(name="👤 ⟵ العضو المخالف", value=f"{self.member.mention} (`{self.member.id}`)", inline=False)
-        embed.add_field(name="📌 ⟵ سبب المخالفة", value=f"> {self.reason.value}", inline=False)
-        embed.add_field(name="⚖️ ⟵ نوع العقوبة", value=f"`{self.punishment.value}`", inline=True)
-        embed.add_field(name="⏳ ⟵ مدة العقوبة", value=f"`{self.duration.value}`", inline=True)
-        embed.add_field(name="📊 ⟵ حالة السجل", value=f"الإنذار رقم **`{warn_num:02d}`** من 3", inline=True)
+        embed.add_field(name="👤 العضو:", value=f"{self.member.mention}", inline=False)
+        embed.add_field(name="⚖️ العقوبة:", value=f"`{self.punishment.value}`", inline=False)
+        embed.add_field(name="📌 السبب:", value=f"{self.reason.value}", inline=False)
+        embed.add_field(name="⏳ مدة العقوبة:", value=f"`{self.duration.value}`", inline=False)
         
         if kick_status:
-            embed.add_field(name="🚨 ⟵ إجراء إضافي", value=kick_status, inline=False)
+            embed.add_field(name="🚨 حالة إضافية:", value=kick_status, inline=False)
 
-        embed.set_thumbnail(url=self.member.display_avatar.url)
         embed.set_footer(
-            text=f"المشرف المسؤول: {interaction.user.name}",
+            text=f"بواسطة المشرف: {interaction.user.name}",
             icon_url=interaction.user.display_avatar.url
         )
         embed.timestamp = datetime.datetime.now()
 
         await interaction.followup.send(embed=embed)
 
-@bot.tree.command(name="warn", description="إرسال تحذير وتطبيق العقوبة وإعطاء الرول تلقائياً لعضو")
+@bot.tree.command(name="warn", description="إرسال تحذير وتطبيق العقوبة وإعطاء الرول لعضو")
 @app_commands.checks.has_permissions(manage_messages=True)
 async def slash_warn(interaction: discord.Interaction, member: discord.Member):
     modal = WarnModal(member=member)
     await interaction.response.send_modal(modal)
 
-
-# ----------------- أمر إزالة التحذيرات الشامل (حديث) -----------------
-
-@bot.tree.command(name="unwarn", description="إزالة التحذيرات عن عضو، رفع التيم أوت، ونزع رولات التحذير")
+@bot.tree.command(name="unwarn", description="إزالة التحذيرات عن عضو ورفع العقوبات")
 @app_commands.checks.has_permissions(manage_messages=True)
 async def slash_unwarn(interaction: discord.Interaction, member: discord.Member):
     await interaction.response.defer(thinking=True)
     
-    # 1. حذف التحذير من قاعدة البيانات
     cursor.execute('DELETE FROM warnings WHERE user_id = ?', (member.id,))
     db.commit()
     
-    # 2. إزالة الـ Timeout
     try:
-        await member.timeout(None, reason="تمت إزالة التحذيرات بواسطة المشرف")
-    except Exception as e:
-        print(f"فشل إزالة الـ Timeout: {e}")
+        await member.timeout(None, reason="إزالة التحذيرات")
+    except Exception:
+        pass
     
-    # 3. إزالة رولات التحذيرات التي تبدأ بـ "Avertissement"
     removed_roles_count = 0
     try:
-        roles_to_remove = []
-        for role in member.roles:
-            if "avertissement" in role.name.lower():
-                roles_to_remove.append(role)
-        
+        roles_to_remove = [r for r in member.roles if "avertissement" in r.name.lower()]
         if roles_to_remove:
             await member.remove_roles(*roles_to_remove)
             removed_roles_count = len(roles_to_remove)
-    except Exception as e:
-        print(f"فشل إزالة الرولات: {e}")
+    except Exception:
+        pass
 
     embed = discord.Embed(
-        title="🧹 تنظيف السجل • العفو وإزالة العقوبات",
-        description=f"تم إرجاع صفحة العضو {member.mention} نظيفة كلياً بنجاح!",
-        color=discord.Color.from_rgb(46, 204, 113) # لون أخضر أنيق
+        title="🧹 إزالة التحذيرات والعقوبات",
+        description=f"تم تنظيف سجل العضو {member.mention} بنجاح.\nتم مسح العداد، رفع التيم أوت، وسحب ({removed_roles_count}) رول.",
+        color=discord.Color.from_rgb(46, 204, 113)
     )
-    
-    embed.add_field(name="🗑️ مسح التحذيرات", value="تم تصفير العداد إلى `0`", inline=True)
-    embed.add_field(name="🔊 رفع التيم أوت", value="تم فك الحظر الصوتي/الكتابي", inline=True)
-    embed.add_field(name="🛡️ إزالة الرولات", value=f"تم سحب ({removed_roles_count}) رول إنذار", inline=True)
-
-    embed.set_thumbnail(url=member.display_avatar.url)
     embed.set_footer(
         text=f"بواسطة المشرف: {interaction.user.name}",
         icon_url=interaction.user.display_avatar.url
@@ -304,7 +318,6 @@ async def slash_unwarn(interaction: discord.Interaction, member: discord.Member)
     embed.timestamp = datetime.datetime.now()
     
     await interaction.followup.send(embed=embed)
-
 
 keep_alive()
 TOKEN = os.environ.get('DISCORD_TOKEN')
