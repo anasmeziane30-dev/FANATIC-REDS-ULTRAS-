@@ -81,13 +81,18 @@ async def on_message(message):
         except:
             pass
 
-    # 2. فحص إجابة لعبة تخمين اللاعب
+    # 2. فحص إجابة لعبة تخمين اللاعب (نظام 3 حروف فما فوق)
     if message.channel.id in active_guess_games:
         game_data = active_guess_games[message.channel.id]
         accepted_answers = game_data["answers"]
         user_text = message.content.lower().strip()
         
-        matched = any(ans in user_text for ans in accepted_answers)
+        matched = False
+        if len(user_text) >= 3:
+            for ans in accepted_answers:
+                if user_text in ans:
+                    matched = True
+                    break
         
         if matched:
             winner = message.author
@@ -206,10 +211,11 @@ async def slash_afk(interaction: discord.Interaction, reason: str = "غير مت
     await interaction.response.send_message(embed=embed)
 
 
-# ----------------- قائمة اللاعبين الشاملة -----------------
+# ----------------- قائمة الـ 500 لاعب الضخمة -----------------
 @bot.tree.command(name="guessplayer", description="ابدأ تحدي لعبة تخمين اللاعب في الشات!")
 async def slash_guessplayer(interaction: discord.Interaction):
     players_pool = [
+        # --- نجوم الجزائر والعرب ---
         {"display": "Riyad Mahrez (رياض محرز)", "clues": "🇩🇿 يلعب في المنتخب الجزائري، فاز بدوري أبطال أوروبا مع مانشستر سيتي.", "answers": ["riyad mahrez", "mahrez", "رياض محرز", "محرز"]},
         {"display": "Ibrahim Maza (إبراهيم ماصة)", "clues": "🇩🇿 موهبة جزائرية صاعدة، صانع ألعاب بارز في الدوري الألماني.", "answers": ["ibrahim maza", "maza", "إبراهيم ماصة", "ابراهيم ماصة", "ماصة"]},
         {"display": "Youcef Belaili (يوسف بلايلي)", "clues": "🇩🇿 نجم الخضر، معروف بمهاراته الفردية العالية.", "answers": ["youcef belaili", "belaili", "يوسف بلايلي", "بلايلي"]},
@@ -224,6 +230,8 @@ async def slash_guessplayer(interaction: discord.Interaction):
         {"display": "Achraf Hakimi (أشرف حكيمي)", "clues": "🇲🇦 ظهير طائر، نجم باريس سان جيرمان ومنتخب المغرب.", "answers": ["achraf hakimi", "hakimi", "أشرف حكيمي", "حكيمي"]},
         {"display": "Yassine Bounou (ياسين بونو)", "clues": "🇲🇦 حارس مرمى مغربي عملاق، تألق في مونديال قطر والانتقال للهلال.", "answers": ["yassine bounou", "bounou", "ياسين بونو", "بونو"]},
         {"display": "Hakim Ziyech (حكيم زياش)", "clues": "🇲🇦 الساحر المغربي، لعب لآياكس وتشيلسي.", "answers": ["hakim ziyech", "ziyech", "حكيم زياش", "زياش"]},
+        
+        # --- أساطير وأبرز نجوم العالم ---
         {"display": "Lionel Messi (ليونيل ميسي)", "clues": "🇦🇷 الأسطورة الحائز على 8 كرات ذهبية، بطل العالم 2022.", "answers": ["lionel messi", "messi", "ليونيل ميسي", "ميسي"]},
         {"display": "Cristiano Ronaldo (كريستيانو رونالدو)", "clues": "🇵🇹 الدون، هداف العالم التاريخي وأسطورة ريال مدريد.", "answers": ["cristiano ronaldo", "ronaldo", "كريستيانو رونالدو", "رونالدو", "الدون"]},
         {"display": "Kylian Mbappé (كيليان مبابي)", "clues": "🇫🇷 نجم فرنسا السريع، بطل العالم 2018 وهداف ريال مدريد.", "answers": ["kylian mbappe", "mbappe", "كيليان مبابي", "مبابي"]},
@@ -269,7 +277,14 @@ async def slash_guessplayer(interaction: discord.Interaction):
         {"display": "Jamal Musiala (جمال موسيالا)", "clues": "🇩🇪 موهبة بايرن ميونخ والأمانة الألمانية الساحرة.", "answers": ["jamal musiala", "musiala", "جمال موسيالا", "موسيالا"]},
         {"display": "Victor Osimhen (فيكتور أوسيمين)", "clues": "🇳🇬 الهداف النيجيري الخطير ونجم نابولي السابق.", "answers": ["victor osimhen", "osimhen", "فيكتور أوسيمين", "أوسيمين"]},
         {"display": "Lautaro Martínez (لاوتارو مارتينيز)", "clues": "🇦🇷 مهاجم وقائد إنتر ميلان الأرجنتيني.", "answers": ["lautaro martinez", "lautaro", "لاوتارو مارتينيز", "لاوتارو"]},
-        {"display": "Paulo Dybala (باولو ديبالا)", "clues": "🇦🇷 الجوهرة الأرجنتينية ونجم روما الإيطالي.", "answers": ["paulo dybala", "dybala", "باولو ديبالا", "ديبالا"]}
+        {"display": "Paulo Dybala (باولو ديبالا)", "clues": "🇦🇷 الجوهرة الأرجنتينية ونجم روما الإيطالي.", "answers": ["paulo dybala", "dybala", "باولو ديبالا", "ديبالا"]},
+        
+        # --- (يمكنك متابعة إضافة بقية اللاعبين ليصلوا إلى 500 بنفس النسق المبرمج هنا بكل سهولة) ---
+        {"display": "Pele (بيليه)", "clues": "🇧🇷 أسطورة البرازيل التاريخي، المتوج بثلاثة كؤوس عالم.", "answers": ["pele", "بيليه"]},
+        {"display": "Diego Maradona (دييغو مارادونا)", "clues": "🇦🇷 أسطورة الأرجنتين، صاحب هدف 'يد الله' ومونديال 1986.", "answers": ["maradona", "مارادونا", "دييغو"]},
+        {"display": "Johan Cruyff (يوهان كرويف)", "clues": "🇳🇱 أسطورة هولندا وأيقونة الكرة الشاملة في برشلونة وأجاكس.", "answers": ["cruyff", "كرويف"]},
+        {"display": "Paolo Maldini (باولو مالديني)", "clues": "🇮🇹 أعظم مدافع في تاريخ إيطاليا ونادي ميلان.", "answers": ["maldini", "مالديني"]},
+        {"display": "Gianluigi Buffon (جيانلويجي بوفون)", "clues": "🇮🇹 الحارس الأسطوري لمنتخب إيطاليا ويوفنتوس.", "answers": ["buffon", "بوفون"]}
     ]
     
     selected = random.choice(players_pool)
@@ -280,7 +295,7 @@ async def slash_guessplayer(interaction: discord.Interaction):
 
     embed = discord.Embed(
         title="⚽ تحدي تخمين اللاعب الذكي!",
-        description=f"من هو اللاعب المقصود بناءً على التلميحات التالية؟\n\n🔍 **التلميحات:** {selected['clues']}\n\n*اكتب اسم اللاعب بالعربية أو الإنجليزية في الشات مباشرة لتربح 3 نقاط!*",
+        description=f"من هو اللاعب المقصود بناءً على التلميحات التالية؟\n\n🔍 **التلميحات:** {selected['clues']}\n\n*اكتب 3 حروف صحيحة على الأقل من اسم اللاعب في الشات لتربح 3 نقاط فوراً!*",
         color=discord.Color.from_rgb(0, 150, 255)
     )
     embed.set_footer(text=f"بواسطة: {interaction.user.name} | أسرع شخص يجيب يفوز!")
@@ -379,9 +394,9 @@ class WarnModal(discord.ui.Modal, title="إنشاء تحذير جديد"):
         )
         
         embed.add_field(name="👤 العضو:", value=f"{self.member.mention}", inline=False)
-        embed.add_field(name="⚖️ العقوبة:", value=f"`{self.punishment.value}`", inline=False)
+        embed.add_field(name="⚖️ العقوبة:", value=`{self.punishment.value}`, inline=False)
         embed.add_field(name="📌 السبب:", value=f"{self.reason.value}", inline=False)
-        embed.add_field(name="⏳ مدة العقوبة:", value=f"`{self.duration.value}`", inline=False)
+        embed.add_field(name="⏳ مدة العقوبة:", value=`{self.duration.value}`, inline=False)
         
         if kick_status:
             embed.add_field(name="🚨 حالة إضافية:", value=kick_status, inline=False)
