@@ -206,20 +206,70 @@ async def slash_afk(interaction: discord.Interaction, reason: str = "غير مت
     await interaction.response.send_message(embed=embed)
 
 
-# ----------------- قائمة اللاعبين مع التلميحات والإجابات المرنة -----------------
+# ----------------- قائمة اللاعبين الشاملة -----------------
 @bot.tree.command(name="guessplayer", description="ابدأ تحدي لعبة تخمين اللاعب في الشات!")
 async def slash_guessplayer(interaction: discord.Interaction):
     players_pool = [
         {"display": "Riyad Mahrez (رياض محرز)", "clues": "🇩🇿 يلعب في المنتخب الجزائري، فاز بدوري أبطال أوروبا مع مانشستر سيتي.", "answers": ["riyad mahrez", "mahrez", "رياض محرز", "محرز"]},
-        {"display": "Ibrahim Maza (إبراهيم ماصة)", "clues": "🇩🇿 موهبة جزائرية صاعدة، يلعب في الدوري الألماني وصانع ألعاب بارز.", "answers": ["ibrahim maza", "maza", "إبراهيم ماصة", "ابراهيم ماصة", "ماصة"]},
+        {"display": "Ibrahim Maza (إبراهيم ماصة)", "clues": "🇩🇿 موهبة جزائرية صاعدة، صانع ألعاب بارز في الدوري الألماني.", "answers": ["ibrahim maza", "maza", "إبراهيم ماصة", "ابراهيم ماصة", "ماصة"]},
         {"display": "Youcef Belaili (يوسف بلايلي)", "clues": "🇩🇿 نجم الخضر، معروف بمهاراته الفردية العالية.", "answers": ["youcef belaili", "belaili", "يوسف بلايلي", "بلايلي"]},
         {"display": "Islam Slimani (إسلام سليماني)", "clues": "🇩🇿 الهداف التاريخي للمنتخب الجزائري، برع في الكرات الهوائية.", "answers": ["islam slimani", "slimani", "إسلام سليماني", "سليماني"]},
         {"display": "Baghdad Bounedjah (بغداد بونجاح)", "clues": "🇩🇿 مهاجم قناص، صاحب هدف نهائي أمم إفريقيا 2019 ضد السنغال.", "answers": ["baghdad bounedjah", "bounedjah", "بغداد بونجاح", "بونجاح"]},
+        {"display": "Rayane Ait Nouri (ريان آيت نوري)", "clues": "🇩🇿 ظهير أيسر متألق في الدوري الإنجليزي الممتاز.", "answers": ["rayane ait nouri", "ait nouri", "ريان آيت نوري", "ايت نوري"]},
+        {"display": "Houssem Aouar (حسام عوار)", "clues": "🇩🇿 لاعب خط وسط تقني، لعب لروما وانتقل للدوري السعودي.", "answers": ["houssem aouar", "aouar", "حسام عوار", "عوار"]},
+        {"display": "Ismael Bennacer (إسماعيل بن ناصر)", "clues": "🇩🇿 أفضل لاعب في أمم إفريقيا 2019، نجم ميلان الإيطالي.", "answers": ["ismael bennacer", "bennacer", "إسماعيل بن ناصر", "بن ناصر"]},
+        {"display": "Youcef Atal (يوسف عطال)", "clues": "🇩🇿 ظهير أيمن سريع ومهاري، لعب لنيس الفرنسي.", "answers": ["youcef atal", "atal", "يوسف عطال", "عطال"]},
+        {"display": "Rami Bensebaini (رامي بن سبعيني)", "clues": "🇩🇿 مدافع صلب في المنتخب ونادي بوروسيا دورتموند الألماني.", "answers": ["rami bensebaini", "bensebaini", "رامي بن سبعيني", "بن سبعيني"]},
+        {"display": "Mohamed Salah (محمد صلاح)", "clues": "🇪🇬 فخر العرب، أسطورة ليفربول وهداف الدوري الإنجليزي.", "answers": ["mohamed salah", "salah", "محمد صلاح", "صلاح"]},
+        {"display": "Achraf Hakimi (أشرف حكيمي)", "clues": "🇲🇦 ظهير طائر، نجم باريس سان جيرمان ومنتخب المغرب.", "answers": ["achraf hakimi", "hakimi", "أشرف حكيمي", "حكيمي"]},
+        {"display": "Yassine Bounou (ياسين بونو)", "clues": "🇲🇦 حارس مرمى مغربي عملاق، تألق في مونديال قطر والانتقال للهلال.", "answers": ["yassine bounou", "bounou", "ياسين بونو", "بونو"]},
+        {"display": "Hakim Ziyech (حكيم زياش)", "clues": "🇲🇦 الساحر المغربي، لعب لآياكس وتشيلسي.", "answers": ["hakim ziyech", "ziyech", "حكيم زياش", "زياش"]},
         {"display": "Lionel Messi (ليونيل ميسي)", "clues": "🇦🇷 الأسطورة الحائز على 8 كرات ذهبية، بطل العالم 2022.", "answers": ["lionel messi", "messi", "ليونيل ميسي", "ميسي"]},
-        {"display": "Cristiano Ronaldo (كريستيانو رونالدو)", "clues": "🇵🇹 الدون، هداف العالم التاريخي وأسطورة ريال مدريد ومانشستر يونايتد.", "answers": ["cristiano ronaldo", "ronaldo", "كريستيانو رونالدو", "رونالدو", "الدون"]},
+        {"display": "Cristiano Ronaldo (كريستيانو رونالدو)", "clues": "🇵🇹 الدون، هداف العالم التاريخي وأسطورة ريال مدريد.", "answers": ["cristiano ronaldo", "ronaldo", "كريستيانو رونالدو", "رونالدو", "الدون"]},
         {"display": "Kylian Mbappé (كيليان مبابي)", "clues": "🇫🇷 نجم فرنسا السريع، بطل العالم 2018 وهداف ريال مدريد.", "answers": ["kylian mbappe", "mbappe", "كيليان مبابي", "مبابي"]},
         {"display": "Erling Haaland (إيرلينغ هالاند)", "clues": "🇳🇴 ماكينة الأهداف النرويجية، مرعب المدافعين في مانشستر سيتي.", "answers": ["erling haaland", "haaland", "إيرلينغ هالاند", "هالاند"]},
-        {"display": "Kevin De Bruyne (كيفين دي بروين)", "clues": "🇧🇪 مهندس وقائد خط وسط مانشستر سيتي، ملك التمريرات الحاسمة.", "answers": ["kevin de bruyne", "de bruyne", "كيفين دي بروين", "دي بروين"]}
+        {"display": "Jude Bellingham (جود بيلينغهام)", "clues": "🏴󠁧󠁢󠁥󠁮󠁧󠁿 موهبة إنجليزية فذة، نجم خط وسط ريال مدريد.", "answers": ["jude bellingham", "bellingham", "جود بيلينغهام", "بيلينغهام"]},
+        {"display": "Kevin De Bruyne (كيفين دي بروين)", "clues": "🇧🇪 مهندس وقائد خط وسط مانشستر سيتي.", "answers": ["kevin de bruyne", "de bruyne", "كيفين دي بروين", "دي بروين"]},
+        {"display": "Luka Modrić (لوكا مودريتش)", "clues": "🇭🇷 المايسترو الكرواتي الحائز على الكرة الذهبية، أسطورة ريال مدريد.", "answers": ["luka modric", "modric", "لوكا مودريتش", "مودريتش"]},
+        {"display": "Vinicius Junior (فينيسيوس جونيور)", "clues": "🇧🇷 الجناح البرازيلي المراوغ والخطير في صفوف ريال مدريد.", "answers": ["vinicius junior", "vinicius", "فينيسيوس جونيور", "فينيسيوس"]},
+        {"display": "Neymar Jr (نيمار جونيور)", "clues": "🇧🇷 الساحر البرازيلي المعروف بمهاراته الفردية الخارقة.", "answers": ["neymar", "نيمار"]},
+        {"display": "Karim Benzema (كريم بنزيما)", "clues": "🇫🇷 الفائز بالكرة الذهبية 2022، أسطورة ريال مدريد ونجم الاتحاد السعودي.", "answers": ["karim benzema", "benzema", "كريم بنزيما", "بنزيما"]},
+        {"display": "Robert Lewandowski (روبرت ليفاندوفسكي)", "clues": "🇵🇱 قناص بولندي، هداف نادي برشلونة.", "answers": ["robert lewandowski", "lewandowski", "روبرت ليفاندوفسكي", "ليفاندوفسكي"]},
+        {"display": "Sadio Mané (ساديو ماني)", "clues": "🇸🇳 أسطورة ليفربول السابق ونجم النصر الحالي.", "answers": ["sadio mane", "mane", "ساديو ماني", "ماني"]},
+        {"display": "Zinedine Zidane (زين الدين زيدان)", "clues": "🇫🇷 أسطورة فرنسا وريال مدريد، صاحب رأسية 1998 التاريخية.", "answers": ["zinedine zidane", "zidane", "زين الدين زيدان", "زيدان"]},
+        {"display": "Thierry Henry (تييري هنري)", "clues": "🇫🇷 أسطورة أرسنال والمنتخب الفرنسي، هداف تاريخي.", "answers": ["thierry henry", "henry", "تييري هنري", "هنري"]},
+        {"display": "Ronaldinho (رونالدينهو)", "clues": "🇧🇷 الساحر البرازيلي، بطل العالم 2002 وأسطورة برشلونة.", "answers": ["ronaldinho", "رونالدينهو"]},
+        {"display": "Andrés Iniesta (أندريس إنييستا)", "clues": "🇪🇸 مسجل هدف نهائي مونديال 2010، أسطورة برشلونة.", "answers": ["andres iniesta", "iniesta", "أندريس إنييستا", "إنييستا"]},
+        {"display": "Xavi Hernandez (تشافي هيرنانديز)", "clues": "🇪🇸 مايسترو خط وسط برشلونة وإسبانيا الذهبي.", "answers": ["xavi", "xavi hernandez", "تشافي"]},
+        {"display": "Sergio Ramos (سيرجيو راموس)", "clues": "🇪🇸 المدافع الهداف وأسطورة ريال مدريد وإسبانيا.", "answers": ["sergio ramos", "ramos", "سيرجيو راموس", "راموس"]},
+        {"display": "Virgil van Dijk (فيرجيل فان ديك)", "clues": "🇳🇱 صخرة دفاع ليفربول والمنتخب الهولندي.", "answers": ["virgil van dijk", "van dijk", "فيرجيل فان ديك", "فان ديك"]},
+        {"display": "Harry Kane (هاري كين)", "clues": "🏴󠁧󠁢󠁥󠁮󠁧󠁿 هداف إنجلترا ونادي بايرن ميونخ.", "answers": ["harry kane", "kane", "هاري كين", "كين"]},
+        {"display": "Son Heung-min (سون هيونغ مين)", "clues": "🇰🇷 النجم الكوري الجنوبي المتألق في صفوف توتنهام.", "answers": ["son heung-min", "son", "سون هيونغ مين", "سون"]},
+        {"display": "Bruno Fernandes (برونو فرنانديز)", "clues": "🇵🇹 صانع ألعاب مانشستر يونايتد والمنتخب البرتغالي.", "answers": ["bruno fernandes", "bruno", "برونو فرنانديز", "برونو"]},
+        {"display": "Pedri (بيدري)", "clues": "🇪🇸 موهبة برشلونة الشابة في خط الوسط الإسباني.", "answers": ["pedri", "بيدري"]},
+        {"display": "Gavi (غافي)", "clues": "🇪🇸 الجوهرة القتالية الشابة في نادي برشلونة.", "answers": ["gavi", "غافي"]},
+        {"display": "Lamine Yamal (لامين يامال)", "clues": "🇪🇸 الموهبة الإسبانية الخارقة الصاعدة في برشلونة.", "answers": ["lamine yamal", "yamal", "لامين يامال", "يامال"]},
+        {"display": "Bukayo Saka (بوكايو ساكا)", "clues": "🏴󠁧󠁢󠁥󠁮󠁧󠁿 نجم أرسنال والمنتخب الإنجليزي الشاب.", "answers": ["bukayo saka", "saka", "بوكايو ساكا", "ساكا"]},
+        {"display": "Phil Foden (فيل فودين)", "clues": "🏴󠁧󠁢󠁥󠁮󠁧󠁿 الجوهرة الإنجليزية في صفوف مانشستر سيتي.", "answers": ["phil foden", "foden", "فيل فودين", "فودين"]},
+        {"display": "Cole Palmer (كول بالمر)", "clues": "🏴󠁧󠁢󠁥󠁮󠁧󠁿 متألق تشلسي والمنتخب الإنجليزي ببرود أعصابه.", "answers": ["cole palmer", "palmer", "كول بالمر", "بالمر"]},
+        {"display": "Declan Rice (ديكلان رايس)", "clues": "🏴󠁧󠁢󠁥󠁮󠁧󠁿 صخرة خط وسط أرسنال وإنجلترا.", "answers": ["declan rice", "rice", "ديكلان رايس", "رايس"]},
+        {"display": "Martin Ødegaard (مارتن أوديغارد)", "clues": "🇳🇴 قائد وعقل نادي أرسنال النرويجي.", "answers": ["martin odegaard", "odegaard", "مارتن أوديغارد", "أوديغارد"]},
+        {"display": "Alisson Becker (أليسون بيكر)", "clues": "🇧🇷 حارس مرمى ليفربول والبرازيل.", "answers": ["alisson becker", "alisson", "أليسون بيكر", "أليسون"]},
+        {"display": "Thibaut Courtois (تيبو كورتوا)", "clues": "🇧🇪 الحارس العملاق لنادي ريال مدريد البلجيكي.", "answers": ["thibaut courtois", "courtois", "تيبو كورتوا", "كورتوا"]},
+        {"display": "Manuel Neuer (مانويل نوير)", "clues": "🇩🇪 أستاذ حراس المرمى الألمان وأسطورة بايرن ميونخ.", "answers": ["manuel neuer", "neuer", "مانويل نوير", "نوير"]},
+        {"display": "Antonio Rüdiger (أنطونيو روديغر)", "clues": "🇩🇪 مدافع ريال مدريد القوي والشرس.", "answers": ["antonio rudiger", "rudiger", "أنطونيو روديغر", "روديغر"]},
+        {"display": "William Saliba (ويليام ساليبا)", "clues": "🇫🇷 صخرة دفاع أرسنال الفرنسي.", "answers": ["william saliba", "saliba", "ويليام ساليبا", "ساليبا"]},
+        {"display": "Ruben Dias (روبن دياز)", "clues": "🇵🇹 قائد ودفاع مانشستر سيتي الصلب.", "answers": ["ruben dias", "dias", "روبن دياز", "دياز"]},
+        {"display": "Theo Hernandez (ثيو هيرنانديز)", "clues": "🇫🇷 ظهير أيسر ميلان السريع والهداف.", "answers": ["theo hernandez", "hernandez", "ثيو هيرنانديز", "هيرنانديز"]},
+        {"display": "Joshua Kimmich (جوشوا كيميتش)", "clues": "🇩🇪 جوكر خط وسط بايرن ميونخ وألمانيا.", "answers": ["joshua kimmich", "kimmich", "جوشوا كيميتش", "كيميتش"]},
+        {"display": "Toni Kroos (توني كروس)", "clues": "🇩🇪 أسطورة التمريرات والدقة، اعتزل في ريال مدريد.", "answers": ["toni kroos", "kroos", "توني كروس", "كروس"]},
+        {"display": "Federico Valverde (فيديريكو فالفيردي)", "clues": "🇺🇾 المحرك الأوروغوياني وسريع ريال مدريد.", "answers": ["federico valverde", "valverde", "فيديريكو فالفيردي", "فالفيردي"]},
+        {"display": "Rodri (رودري)", "clues": "🇪🇸 أفضل لاعب وسط متأخر، نجم مانشستر سيتي وإسبانيا.", "answers": ["rodri", "رودري"]},
+        {"display": "Bernardo Silva (برناردو سيلفا)", "clues": "🇵🇹 العقل المدبر ومهاري مانشستر سيتي البرتغالي.", "answers": ["bernardo silva", "bernardo", "برناردو سيلفا", "برناردو"]},
+        {"display": "Jamal Musiala (جمال موسيالا)", "clues": "🇩🇪 موهبة بايرن ميونخ والأمانة الألمانية الساحرة.", "answers": ["jamal musiala", "musiala", "جمال موسيالا", "موسيالا"]},
+        {"display": "Victor Osimhen (فيكتور أوسيمين)", "clues": "🇳🇬 الهداف النيجيري الخطير ونجم نابولي السابق.", "answers": ["victor osimhen", "osimhen", "فيكتور أوسيمين", "أوسيمين"]},
+        {"display": "Lautaro Martínez (لاوتارو مارتينيز)", "clues": "🇦🇷 مهاجم وقائد إنتر ميلان الأرجنتيني.", "answers": ["lautaro martinez", "lautaro", "لاوتارو مارتينيز", "لاوتارو"]},
+        {"display": "Paulo Dybala (باولو ديبالا)", "clues": "🇦🇷 الجوهرة الأرجنتينية ونجم روما الإيطالي.", "answers": ["paulo dybala", "dybala", "باولو ديبالا", "ديبالا"]}
     ]
     
     selected = random.choice(players_pool)
@@ -230,7 +280,7 @@ async def slash_guessplayer(interaction: discord.Interaction):
 
     embed = discord.Embed(
         title="⚽ تحدي تخمين اللاعب الذكي!",
-        description=f"من هو اللاعب المقصود بناءً على التلميحات التالية؟\n\n🔍 **التلميحات:** {selected['clues']}\n\n*اكتب اسم اللاعب (مثل: محرز، ميسي...) في الشات مباشرة لتربح 3 نقاط!*",
+        description=f"من هو اللاعب المقصود بناءً على التلميحات التالية؟\n\n🔍 **التلميحات:** {selected['clues']}\n\n*اكتب اسم اللاعب بالعربية أو الإنجليزية في الشات مباشرة لتربح 3 نقاط!*",
         color=discord.Color.from_rgb(0, 150, 255)
     )
     embed.set_footer(text=f"بواسطة: {interaction.user.name} | أسرع شخص يجيب يفوز!")
