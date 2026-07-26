@@ -167,27 +167,26 @@ async def points(ctx, member: discord.Member = None):
     )
     await ctx.send(embed=embed)
 
-# أمر إرسال التنبيه في الخاص مع سحب الصورة المرفقة والنص تلقائياً
+# أمر إرسال التنبيه في الخاص مع الصورة المضمنة الدائمة
 @bot.command(name='notify')
 @commands.has_permissions(administrator=True)
 async def notify(ctx, *, message: str = ""):
-    image_url = None
-    
-    # فحص ما إذا كانت الرسالة تحتوي على صورة مرفقة
-    if ctx.message.attachments:
-        image_url = ctx.message.attachments[0].url
+    # ضع رابط الصورة المباشر والثابت هنا بين علامتي التنصيص
+    IMAGE_URL = "ضع_الرابط_المباشر_هنا"
 
-    await ctx.message.delete()
+    try:
+        await ctx.message.delete()
+    except:
+        pass
     
-    # تصميم الـ Embed مع اللون الأحمر الخاص بـ Ultras
     embed = discord.Embed(
         title="🚨 تنبيه هام - Fanatic Reds",
         description=message,
         color=discord.Color.from_rgb(235, 47, 6)
     )
     
-    if image_url:
-        embed.set_image(url=image_url)
+    if IMAGE_URL and IMAGE_URL != "ضع_الرابط_المباشر_هنا":
+        embed.set_image(url=IMAGE_URL)
     
     success_count = 0
     fail_count = 0
@@ -201,7 +200,7 @@ async def notify(ctx, *, message: str = ""):
         except:
             fail_count += 1
             
-    await ctx.send(f"✅ تم إرسال التنبيه في الخاص إلى `{success_count}` عضواً.", delete_after=10)
+    await ctx.send(f"✅ تم إرسال التنبيه في الخاص إلى `{success_count}` عضواً مع الصورة الثابتة.", delete_after=10)
 
 
 # ----------------- أشرطة الأوامر السلاش (Slash Commands) -----------------
