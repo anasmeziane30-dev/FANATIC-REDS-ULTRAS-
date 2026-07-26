@@ -122,7 +122,8 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
-# أوامر العادية (Prefix Commands)
+# ----------------- الأوامر العادية (Prefix Commands) -----------------
+
 @bot.command(name='say')
 async def say(ctx, *, message: str):
     await ctx.message.delete()
@@ -166,6 +167,32 @@ async def points(ctx, member: discord.Member = None):
         color=discord.Color.blue()
     )
     await ctx.send(embed=embed)
+
+# أمر الإشعار الخاص (Notify DM)
+@bot.command(name='notify')
+@commands.has_permissions(administrator=True)
+async def notify(ctx, *, message: str):
+    await ctx.message.delete()
+    
+    embed = discord.Embed(
+        title="🔔 ═══════════ [ تنبيه إداري مهم ] ═══════════ 🔔",
+        description=f"{message}\n\n*تم إرسال هذا التنبيه من سيرفر: {ctx.guild.name}*",
+        color=discord.Color.from_rgb(138, 43, 226)
+    )
+    
+    success_count = 0
+    fail_count = 0
+    
+    for member in ctx.guild.members:
+        if member.bot:
+            continue
+        try:
+            await member.send(content=f"مرحباً {member.mention}، لديك تنبيه جديد:", embed=embed)
+            success_count += 1
+        except:
+            fail_count += 1
+            
+    await ctx.send(f"✅ تم إرسال التنبيه إلى `{success_count}` عضواً في الخاص. (فشل مع `{fail_count}` بسبب إغلاق الخاص لديهم).", delete_after=10)
 
 
 # ----------------- أشرطة الأوامر السلاش (Slash Commands) -----------------
