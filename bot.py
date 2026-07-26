@@ -67,7 +67,6 @@ async def on_ready():
 
 @bot.event
 async def on_member_join(member):
-    # إعطاء رول Nv | Persone تلقائياً عند دخول السيرفر
     default_role = discord.utils.get(member.guild.roles, name="Nv | Persone")
     if default_role:
         try:
@@ -168,16 +167,17 @@ async def points(ctx, member: discord.Member = None):
     )
     await ctx.send(embed=embed)
 
-# أمر الإشعار الخاص (Notify DM)
+# أمر إرسال التنبيه في الخاص (DM) بنفس شكل وتصميم الـ Embed الأحمر
 @bot.command(name='notify')
 @commands.has_permissions(administrator=True)
 async def notify(ctx, *, message: str):
     await ctx.message.delete()
     
+    # تصميم الـ Embed بنفس الشكل المطلوب مع اللون الأحمر
     embed = discord.Embed(
-        title="🔔 ═══════════ [ تنبيه إداري مهم ] ═══════════ 🔔",
-        description=f"{message}\n\n*تم إرسال هذا التنبيه من سيرفر: {ctx.guild.name}*",
-        color=discord.Color.from_rgb(138, 43, 226)
+        title="🚨 تنبيه هام - Fanatic Reds",
+        description=message,
+        color=discord.Color.from_rgb(235, 47, 6)
     )
     
     success_count = 0
@@ -187,12 +187,13 @@ async def notify(ctx, *, message: str):
         if member.bot:
             continue
         try:
-            await member.send(content=f"مرحباً {member.mention}، لديك تنبيه جديد:", embed=embed)
+            # إرسال المنشن والـ Embed في الخاص لكل عضو
+            await member.send(content=f"سلام {member.mention}", embed=embed)
             success_count += 1
         except:
             fail_count += 1
             
-    await ctx.send(f"✅ تم إرسال التنبيه إلى `{success_count}` عضواً في الخاص. (فشل مع `{fail_count}` بسبب إغلاق الخاص لديهم).", delete_after=10)
+    await ctx.send(f"✅ تم إرسال التنبيه في الخاص إلى `{success_count}` عضواً. (فشل مع `{fail_count}` لإغلاق الخاص لديهم).", delete_after=10)
 
 
 # ----------------- أشرطة الأوامر السلاش (Slash Commands) -----------------
@@ -212,8 +213,6 @@ async def slash_afk(interaction: discord.Interaction, reason: str = "غير مت
     embed.set_footer(text="سيتم إزالة حالتك تلقائياً بمجرد إرسالك لأي رسالة.")
     await interaction.response.send_message(embed=embed)
 
-
-# أمر مسح الرسائل السريع للمشرفين
 @bot.tree.command(name="clear", description="مسح عدد محدد من الرسائل في الشات")
 @app_commands.describe(amount="عدد الرسائل المراد مسحها")
 @app_commands.checks.has_permissions(manage_messages=True)
@@ -226,8 +225,6 @@ async def slash_clear(interaction: discord.Interaction, amount: int):
     deleted = await interaction.channel.purge(limit=amount)
     await interaction.followup.send(f"✅ تم مسح `{len(deleted)}` رسالة بنجاح.", ephemeral=True)
 
-
-# نظام التحذيرات
 class WarnModal(discord.ui.Modal, title="إنشاء تحذير جديد"):
     def __init__(self, member: discord.Member):
         super().__init__()
@@ -288,31 +285,18 @@ class WarnModal(discord.ui.Modal, title="إنشاء تحذير جديد"):
 
         embed = discord.Embed(
             title=f"⚡ ═══════════ [ ⚠️ Avertissement | {warn_num:02d} ] ═══════════ ⚡",
-            description="╭──────────────────────────────────────────────────────────────╮\n"
-                        f"  👤 **العضو المخالف:** {self.member.mention}\n"
-                        f"  ⚖️ **العقوبة المطبقة:** `{self.punishment.value}`\n"
-                        f"  📌 **سبب التحذير:** `{self.reason.value}`\n"
-                        f"  ⏳ **مدة العقوبة:** `{self.duration.value}`\n"
-                        "╰──────────────────────────────────────────────────────────────╯"
-                        f"{kick_status}",
+            description=f"  👤 **العضو المخالف:** {self.member.mention}\n  ⚖️ **العقوبة المطبقة:** `{self.punishment.value}`\n  📌 **سبب التحذير:** `{self.reason.value}`\n  ⏳ **مدة العقوبة:** `{self.duration.value}`{kick_status}",
             color=discord.Color.from_rgb(138, 43, 226)
         )
-        embed.set_footer(
-            text=f"بواسطة المشرف: {interaction.user.name}",
-            icon_url=interaction.user.display_avatar.url
-        )
-        embed.timestamp = datetime.datetime.now()
-
         await interaction.followup.send(embed=embed)
 
-@bot.tree.command(name="warn", description="إرسال تحذير وتطبيق العقوبة وإعطاء الرول لعضو")
+@bot.tree.command(name="warn", description="إرسال تحذير وتطبيق العقوبة")
 @app_commands.checks.has_permissions(manage_messages=True)
 async def slash_warn(interaction: discord.Interaction, member: discord.Member):
     modal = WarnModal(member=member)
     await interaction.response.send_modal(modal)
 
-
-@bot.tree.command(name="unwarn", description="إزالة التحذيرات عن عضو ورفع العقوبات")
+@bot.tree.command(name="unwarn", description="إزالة التحذيرات عن عضو")
 @app_commands.checks.has_permissions(manage_messages=True)
 async def slash_unwarn(interaction: discord.Interaction, member: discord.Member):
     await interaction.response.defer(thinking=True)
@@ -323,17 +307,9 @@ async def slash_unwarn(interaction: discord.Interaction, member: discord.Member)
     except Exception:
         pass
     
-    embed = discord.Embed(
-        title="🧹 ══════════ [ إزالة التحذيرات والعقوبات ] ══════════ 🧹",
-        description=f"  👤 **العضو المستهدف:** {member.mention}\n  ✨ **الحالة:** تم تنظيف السجل ورفع التيم أوت بنجاح.",
-        color=discord.Color.from_rgb(138, 43, 226)
-    )
-    embed.set_footer(text=f"بواسطة المشرف: {interaction.user.name}")
-    await interaction.followup.send(embed=embed)
+    await interaction.followup.send(f"🧹 تم تنظيف سجل التحذيرات لـ {member.mention} بنجاح.", ephemeral=True)
 
-
-# أمر /accepté مع التحقق من وجود رول Member Fanatic ورسالة سرية (Ephemeral)
-@bot.tree.command(name="accepté", description="قبول العضو، سحب رول Nv | Persone وإعطائه رول Member Fanatic")
+@bot.tree.command(name="accepté", description="قبول العضو ومنحه رول Member Fanatic")
 @app_commands.describe(member="العضو المراد قبوله")
 @app_commands.checks.has_permissions(manage_roles=True)
 async def slash_accepted(interaction: discord.Interaction, member: discord.Member):
@@ -348,26 +324,20 @@ async def slash_accepted(interaction: discord.Interaction, member: discord.Membe
         await interaction.followup.send(f"العضو {member.mention} مقبول من قبل ✅", ephemeral=True)
         return
 
-    removed_status = "❌ لم يتم العثور على رول Nv | Persone"
-    added_status = "❌ لم يتم العثور على رول Member Fanatic"
-
     role_to_remove = discord.utils.get(interaction.guild.roles, name=role_remove_name)
     if role_to_remove and role_to_remove in member.roles:
         try:
             await member.remove_roles(role_to_remove)
-            removed_status = f"تم إزالة رول {role_remove_name}"
-        except Exception as e:
-            removed_status = f"فشل إزالة الرول: {e}"
+        except:
+            pass
 
     if role_to_add:
         try:
             await member.add_roles(role_to_add)
-            added_status = f"تم منح رول {role_add_name}"
-        except Exception as e:
-            added_status = f"فشل منح الرول: {e}"
+        except:
+            pass
 
-    result_message = f"تم قبول العضو {member.mention} بنجاح ✅\n- {removed_status}\n- {added_status}"
-    await interaction.followup.send(result_message, ephemeral=True)
+    await interaction.followup.send(f"تم قبول العضو {member.mention} بنجاح ✅", ephemeral=True)
 
 
 keep_alive()
