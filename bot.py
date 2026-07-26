@@ -81,7 +81,6 @@ async def on_message(message):
 
     content = message.content.lower().strip()
 
-    # 1. نظام الردود التلقائية (Auto-Responder)
     if "السلام عليكم" in content or "سَلام عليكم" in content or "salam" in content:
         await message.reply(f"وعليكم السلام ورحمة الله وبركاته، أنرت السيرفر يا {message.author.mention}! 💜")
     elif "قوانين" in content or "الوانين" in content:
@@ -89,7 +88,6 @@ async def on_message(message):
     elif "دعم" in content or "support" in content:
         await message.channel.send(f"🛠️ يمكنك فتح تذكرة أو طلب المساعدة من الإدارة يا {message.author.mention}.")
 
-    # 2. نظام حماية الشات من الروابط
     if ("http://" in message.content or "https://" in message.content or "discord.gg/" in message.content):
         if not message.author.guild_permissions.manage_messages:
             try:
@@ -99,7 +97,6 @@ async def on_message(message):
             except:
                 pass
 
-    # 3. نظام الـ AFK التلقائي
     cursor.execute('SELECT * FROM afk_system WHERE user_id = ?', (message.author.id,))
     afk_data = cursor.fetchone()
     if afk_data:
@@ -110,7 +107,6 @@ async def on_message(message):
         except:
             pass
 
-    # 4. الرد عند منشن الشخص الغائب
     if message.mentions:
         for member in message.mentions:
             cursor.execute('SELECT reason, time FROM afk_system WHERE user_id = ?', (member.id,))
@@ -121,7 +117,7 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
-# ----------------- الأوامر العادية (Prefix Commands) -----------------
+# ----------------- الأوامر العادية -----------------
 
 @bot.command(name='say')
 async def say(ctx, *, message: str):
@@ -167,12 +163,10 @@ async def points(ctx, member: discord.Member = None):
     )
     await ctx.send(embed=embed)
 
-# أمر إرسال التنبيه في الخاص مع الصورة المضمنة الدائمة
 @bot.command(name='notify')
 @commands.has_permissions(administrator=True)
 async def notify(ctx, *, message: str = ""):
-    # ضع رابط الصورة المباشر والثابت هنا بين علامتي التنصيص
-    IMAGE_URL = "ضع_الرابط_المباشر_هنا"
+    IMAGE_URL = "https://i.imgur.com/K88ZCJA.jpeg"
 
     try:
         await ctx.message.delete()
@@ -185,7 +179,7 @@ async def notify(ctx, *, message: str = ""):
         color=discord.Color.from_rgb(235, 47, 6)
     )
     
-    if IMAGE_URL and IMAGE_URL != "ضع_الرابط_المباشر_هنا":
+    if IMAGE_URL:
         embed.set_image(url=IMAGE_URL)
     
     success_count = 0
@@ -200,10 +194,9 @@ async def notify(ctx, *, message: str = ""):
         except:
             fail_count += 1
             
-    await ctx.send(f"✅ تم إرسال التنبيه في الخاص إلى `{success_count}` عضواً مع الصورة الثابتة.", delete_after=10)
+    await ctx.send(f"✅ تم إرسال التنبيه في الخاص إلى `{success_count}` عضواً مع الصورة.", delete_after=10)
 
-
-# ----------------- أشرطة الأوامر السلاش (Slash Commands) -----------------
+# ----------------- أوامر السلاش -----------------
 
 @bot.tree.command(name="afk", description="تسجيل أنك غائب عن الجهاز (AFK)")
 @app_commands.describe(reason="سبب الغياب (اختياري)")
@@ -345,7 +338,6 @@ async def slash_accepted(interaction: discord.Interaction, member: discord.Membe
             pass
 
     await interaction.followup.send(f"تم قبول العضو {member.mention} بنجاح ✅", ephemeral=True)
-
 
 keep_alive()
 TOKEN = os.environ.get('DISCORD_TOKEN')
