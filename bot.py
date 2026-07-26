@@ -63,10 +63,8 @@ async def on_ready():
     except Exception as e:
         print(e)
 
-# ----------------- متغيرات وتخزين مؤقت للعبة تخمين اللاعب -----------------
 active_guess_games = {}
 
-# ----------------- نظام الكشف التلقائي للـ AFK واللعبة -----------------
 @bot.event
 async def on_message(message):
     if message.author.bot:
@@ -83,12 +81,16 @@ async def on_message(message):
         except:
             pass
 
-    # 2. فحص إجابة لعبة تخمين اللاعب
+    # 2. فحص إجابة لعبة تخمين اللاعب (تدعم العربية والإنجليزية بمرونة)
     if message.channel.id in active_guess_games:
         game_data = active_guess_games[message.channel.id]
-        correct_answer = game_data["answer"].lower()
+        accepted_answers = game_data["answers"] # قائمة الإجابات المقبولة (عربي وإنجليزي)
+        user_text = message.content.lower().strip()
         
-        if correct_answer in message.content.lower():
+        # التحقق مما إذا كانت رسالة المستخدم تطابق أي صيغة مقبولة للإجابة
+        matched = any(ans in user_text for ans in accepted_answers)
+        
+        if matched:
             winner = message.author
             
             cursor.execute('SELECT points FROM reputation WHERE user_id = ?', (winner.id,))
@@ -103,7 +105,7 @@ async def on_message(message):
 
             embed = discord.Embed(
                 title="🎉 مبروك الفوز!",
-                description=f"الإجابة صحيحة يا {winner.mention}! اللاعب هو **{game_data['answer']}**.\n🏆 لقد ربحت **3 نقاط تقدير** إضافية!",
+                description=f"الإجابة صحيحة يا {winner.mention}! اللاعب هو **{game_data['display_name']}**.\n🏆 لقد ربحت **3 نقاط تقدير** إضافية!",
                 color=discord.Color.green()
             )
             await message.reply(embed=embed)
@@ -205,129 +207,41 @@ async def slash_afk(interaction: discord.Interaction, reason: str = "غير مت
     await interaction.response.send_message(embed=embed)
 
 
-# ----------------- قائمة الـ 100 لاعب لتحدي التخمين -----------------
+# ----------------- قائمة اللاعبين (تدعم العربية والإنجليزية معاً) -----------------
 @bot.tree.command(name="guessplayer", description="ابدأ تحدي لعبة تخمين اللاعب في الشات!")
 async def slash_guessplayer(interaction: discord.Interaction):
     players_pool = [
-        # نجوم الجزائر والعرب
-        {"name": "Riyad Mahrez", "clues": "🇩🇿 يلعب في المنتخب الجزائري، فاز بدوري أبطال أوروبا مع مانشستر سيتي."},
-        {"name": "Ibrahim Maza", "clues": "🇩🇿 موهبة جزائرية صاعدة، يلعب في الدوري الألماني وصانع ألعاب بارز."},
-        {"name": "Youcef Belaili", "clues": "🇩🇿 نجم الخضر، معروف بمهاراته الفردية العالية وهدفه التاريخي ضد بتسوانا أو المغرب."},
-        {"name": "Islam Slimani", "clues": "🇩🇿 الهداف التاريخي للمنتخب الجزائري، برع في الكرات الهوائية."},
-        {"name": "Baghdad Bounedjah", "clues": "🇩🇿 مهاجم قناص، صاحب هدف نهائي أمم إفريقيا 2019 ضد السنغال."},
-        {"name": "Rayane Ait Nouri", "clues": "🇩🇿 ظهير أيسر متألق في الدوري الإنجليزي الممتاز (ولفرهامبتون)."},
-        {"name": "Houssem Aouar", "clues": "🇩🇿 لاعب خط وسط تقني، بدأ في ليون ولعب لروما وانتقل للدوري السعودي."},
-        {"name": "Ismael Bennacer", "clues": "🇩🇿 محارب الصحراء، أفضل لاعب في أمم إفريقيا 2019، نجم ميلان الإيطالي."},
-        {"name": "Youcef Atal", "clues": "🇩🇿 ظهير أيمن سريع ومهاري، لعب لنيس الفرنسي."},
-        {"name": "Rami Bensebaini", "clues": "🇩🇿 مدافع صلب في المنتخب ونادي بوروسيا دورتموند الألماني."},
-        {"name": "Amine Gouiri", "clues": "🇩🇿 مهاجم شاب مميز، اختار تمثيل المنتخب الجزائري ويلعب في فرنسا."},
-        {"name": "Mohamed Amoura", "clues": "🇩🇿 مهاجم يتميز بسرعة فائقة، تألق في بلجيكا وانتقل للدوري الألماني."},
-        {"name": "Alexandre Oukidja", "clues": "🇩🇿 حارس مرمى مخضرم في المنتخب ونادي ميتز الفرنسي."},
-        {"name": "Anthony Mandrea", "clues": "🇩🇿 الحارس الأساسي الحالي للمنتخب الجزائري في الدوري الفرنسي."},
-        {"name": "Mohamed Salah", "clues": "🇪🇬 فخر العرب، أسطورة ليفربول وهداف الدوري الإنجليزي المتكرر."},
-        {"name": "Achraf Hakimi", "clues": "🇲🇦 ظهير طائر، نجم باريس سان جيرمان ومنتخب المغرب."},
-        {"name": "Yassine Bounou", "clues": "🇲🇦 حارس مرمى مغربي عملاق، تألق في مونديال قطر وانتقل للهلال السعودي."},
-        {"name": "Hakim Ziyech", "clues": "🇲🇦 الساحر المغربي، لعب لآياكس وتشيلسي وانتقل لتركيا."},
-        {"name": "Sofyan Amrabat", "clues": "🇲🇦 مقاتل خط الوسط المغربي، لعب لمانشستر يونايتد وفيورنتينا."},
-        {"name": "Youssef En-Nesyri", "clues": "🇲🇦 مهاجم مغربي معروف برأسياته الخارقة مع إشبيلية."},
-        {"name": "Sadio Mané", "clues": "🇸🇳 الفتى الأسمر السنغالي، أسطورة ليفربول السابق ونجم النصر الحالي."},
-        {"name": "Kalidou Koulibaly", "clues": "🇸🇳 صخرة الدفاع السنغالية، قائد الهلال السعودي."},
-        {"name": "Edouard Mendy", "clues": "🇸🇳 حارس سنغالی فاز بدوري الأبطال مع تشيلسي."},
-        {"name": "Victor Osimhen", "clues": "🇳🇬 مهاجم نيجيري خطير، هداف توج بالدوري الإيطالي مع نابولي."},
-        {"name": "Achraf Dari", "clues": "🇲🇦 مدافع مغربي دولي سابقاً في الوداد وأوروبا."},
-
-        # أساطير ونجوم أوروبا والعالم
-        {"name": "Lionel Messi", "clues": "🇦🇷 الأسطورة الحائز على 8 كرات ذهبية، بطل العالم 2022."},
-        {"name": "Cristiano Ronaldo", "clues": "🇵🇹 الدون، هداف العالم التاريخي وأسطورة ريال مدريد ومانشستر يونايتد."},
-        {"name": "Kylian Mbappé", "clues": "🇫🇷 نجم فرنسا السريع، بطل العالم 2018 وهداف ريال مدريد."},
-        {"name": "Erling Haaland", "clues": "🇳🇴 ماكينة الأهداف النرويجية، مرعب المدافعين في مانشستر سيتي."},
-        {"name": "Jude Bellingham", "clues": "🏴󠁧󠁢󠁥󠁮󠁧󠁿 موهبة إنجليزية فذة، نجم خط وسط ريال مدريد."},
-        {"name": "Kevin De Bruyne", "clues": "🇧🇪 مهندس وقائد خط وسط مانشستر سيتي، ملك التمريرات الحاسمة."},
-        {"name": "Luka Modrić", "clues": "🇭🇷 المايسترو الكرواتي الحائز على الكرة الذهبية، أسطورة ريال مدريد."},
-        {"name": "Vinicius Junior", "clues": "🇧🇷 الجناح البرازيلي المراوغ والخطير في صفوف ريال مدريد."},
-        {"name": "Neymar Jr", "clues": "🇧🇷 الساحر البرازيلي المعروف بمهاراته البرازيلية البحتة في برشلونة وباريس."},
-        {"name": "Karim Benzema", "clues": "🇫🇷 الفائز بالكرة الذهبية 2022، أسطورة ريال مدريد ونجم الاتحاد السعودي."},
-        {"name": "Robert Lewandowski", "clues": "🇵🇱 قناص بولندي، أسطورة بايرن ميونخ وهداف برشلونة."},
-        {"name": "Harry Kane", "clues": "🏴󠁧󠁢󠁥󠁮󠁧󠁿 الهداف التاريخي لإنجلترا وبايرن ميونخ."},
-        {"name": "Thibaut Courtois", "clues": "🇧🇪 أحد أفضل حراس المرمى في العالم، حامي عرين ريال مدريد."},
-        {"name": "Marc-Andre ter Stegen", "clues": "🇩🇪 حارس المرمى الألماني الأساسي لنادي برشلونة."},
-        {"name": "Virgil van Dijk", "clues": "🇳🇱 صخرة الدفاع الهولندي وقائد نادي ليفربول."},
-        {"name": "Rúben Dias", "clues": "🇵🇹 مدافع برتغالي صلب ومنظم في دفاع مانشستر سيتي."},
-        {"name": "William Saliba", "clues": "🇫🇷 مدافع فرنسي صلب ومتألق بشدة مع أرسنال."},
-        {"name": "Declan Rice", "clues": "🏴󠁧󠁢󠁥󠁮󠁧󠁿 لاعب خط وسط دفاعي قوي، نجم أرسنال والمنتخب الإنجليزي."},
-        {"name": "Bukayo Saka", "clues": "🏴󠁧󠁢󠁥󠁮󠁧󠁿 الجناح الأيمن المتألق والشاب في أرسنال."},
-        {"name": "Martin Ødegaard", "clues": "🇳🇴 صانع ألعاب وقائد نادي أرسنال ومنتخب النرويج."},
-        {"name": "Rodri", "clues": "🇪🇸 أفضل لاعب وسط دفاعي في العالم، بطل أوروبا وأمم إفريقيا/أورو مع إنجلترا/إسبانيا (مانشستر سيتي)."},
-        {"name": "Phil Foden", "clues": "🏴󠁧󠁢󠁥󠁮󠁧󠁿 الفتى الذهبي لمانشستر سيتي والمنتخب الإنجليزي."},
-        {"name": "Bernardo Silva", "clues": "🇵🇹 اللاعب الجوكر والذكي جداً في خط وسط مانشستر سيتي والبرتغال."},
-        {"name": "Bruno Fernandes", "clues": "🇵🇹 صانع الألعاب البرتغالي وقائد مانشستر يونايتد."},
-        {"name": "Marcus Rashford", "clues": "🏴󠁧󠁢󠁥󠁮󠁧󠁿 مهاجم وجناح مانشستر يونايتد السريع."},
-        {"name": "Alejandro Garnacho", "clues": "🇦🇷 موهبة أرجنتينية شابّة ومتميزة في مانشستر يونايتد."},
-        {"name": "Cole Palmer", "clues": "🏴󠁧󠁢󠁥󠁮󠁧󠁿 نجم تشيلسي الصاعد بقوة وسلاح الفريق الأول."},
-        {"name": "Son Heung-min", "clues": "🇰🇷 النجم الآسيوي الأول، أسطورة توتنهام والمنتخب الكوري الجنوبي."},
-        {"name": "Federico Valverde", "clues": "🇺🇾 مكوك ومقاتل وسط ريال مدريد صاحب التسديدات القوية."},
-        {"name": "Eduardo Camavinga", "clues": "🇫🇷 الجوكر الفرنسي الشاب في ريال مدريد."},
-        {"name": "Aurélien Tchouaméni", "clues": "🇫🇷 لاعب وسط دفاعي قوي في ريال مدريد ومنتخب فرنسا."},
-        {"name": "Antonio Rüdiger", "clues": "🇩🇪 المدافع الألماني الشرس والمقاتل في صفوف ريال مدريد."},
-        {"name": "Dani Carvajal", "clues": "🇪🇸 الظهير الأيمن المخضرم وأحد أساطير ريال مدريد وإسبانيا."},
-        {"name": "Alphonso Davies", "clues": "🇨🇦 أسرع ظهير أيسر في العالم، نجم بايرن ميونخ."},
-        {"name": "Jamal Musiala", "clues": "🇩🇪 الموهبة الألمانية الفذة ومراوغ بايرن ميونخ الرائع."},
-        {"name": "Leroy Sané", "clues": "🇩🇪 جناح ألماني سريع ومهاري في بايرن ميونخ."},
-        {"name": "Joshua Kimmich", "clues": "🇩🇪 الجوكر الألماني في وسط الملعب والظهير لبايرن ميونخ."},
-        {"name": "Thomas Müller", "clues": "🇩🇪 أسطورة بايرن ميونخ والمنتخب الألماني، معروف بذكائه التكتيكي."},
-        {"name": "Manuel Neuer", "clues": "🇩🇪 حارس أسطوري أعطى مفهوماً جديداً لمركز الحارس السويبر، بايرن ميونخ."},
-        {"name": "Florian Wirtz", "clues": "🇩🇪 الجوهرة الألمانية وصانع ألعاب باير ليفركوزن."},
-        {"name": "Granit Xhaka", "clues": "🇨🇭 قائد خط الوسط السويسري الذي صنع المعجزة مع باير ليفركوزن."},
-        {"name": "Victor Boniface", "clues": "🇳🇬 مهاجم نيجيري قوي وقناص مع باير ليفركوزن."},
-        {"name": "Ousmane Dembélé", "clues": "🇫🇷 الجناح الفرنسي المراوغ بقدميه الاثنتين، في باريس سان جيرمان."},
-        {"name": "Achraf Hakimi", "clues": "🇲🇦 (تم ذكره مسبقاً) - ظهير طائر."},
-        {"name": "Gianluigi Donnarumma", "clues": "🇮🇹 حارس عملاق إيطالي، حامي عرين باريس سان جيرمان."},
-        {"name": "Marquinhos", "clues": "🇧🇷 مدافع وقائد نادي باريس سان جيرمان والبرازيل."},
-        {"name": "Khvicha Kvaratskhelia", "clues": "🇬🇪 الساحر الجورجي الملقب بـ كفارادونا، نجم نابولي."},
-        {"name": "Rafael Leão", "clues": "🇵🇹 الجناح البرتغالي السريع والمهاري في صفوف ميلان."},
-        {"name": "Theo Hernandez", "clues": "🇫🇷 الظهير الأيسر السريع والهداف لنادي ميلان الإيطالي."},
-        {"name": "Christian Pulisic", "clues": "🇺🇸 كابتن أمريكا، نجم ميلان المتألق."},
-        {"name": "Lautaro Martínez", "clues": "🇦🇷 المهاجم الأرجنتيني القناص وقائد إنتر ميلان."},
-        {"name": "Nicolò Barella", "clues": "🇮🇹 محرك خط وسط إنتر ميلان ومنتخب إيطاليا."},
-        {"name": "Federico Dimarco", "clues": "🇮🇹 ظهير أيسر إيطالي معروف بيسراه القوية وعرضياته مع إنتر."},
-        {"name": "Dusan Vlahovic", "clues": "🇷🇸 المهاجم الصربي القناص في صفوف يوفنتوس."},
-        {"name": "Paulo Dybala", "clues": "🇦🇷 الجوهرة الأرجنتينية وصانع الألعاب المبدع في روما."},
-        {"name": "Romelu Lukaku", "clues": "🇧🇪 المهاجم الدبابة البلجيكي."},
-        {"name": "Ciro Immobile", "clues": "🇮🇹 الهداف الإيطالي المعروف بلاتسيو سابقاً."},
-        {"name": "N'Golo Kanté", "clues": "🇫🇷 اللاعب المحبوب، رئة لا تتعب في وسط الملعب، نجم الاتحاد والمنتخب."},
-        {"name": "Sadio Mané", "clues": "🇸🇳 (تم ذكره مسبقاً)."},
-        {"name": "Roberto Firmino", "clues": "🇧🇷 المهاجم الوهمي البرازيلي الأيقوني، أهلي جدة."},
-        {"name": "Ivan Toney", "clues": "🏴󠁧󠁢󠁥󠁮󠁧󠁿 مهاجم إنجليزي قوي ومميز في ضربات الجزاء."},
-        {"name": "Bukayo Saka", "clues": "🏴󠁧󠁢󠁥󠁮󠁧󠁿 (تم ذكره مسبقاً)."},
-        {"name": "Gavi", "clues": "🇪🇸 الشاب القتالي والمقاتل الإسباني في خط وسط برشلونة."},
-        {"name": "Pedri", "clues": "🇪🇸 مايسترو وسط برشلونة الشاب ذو التمريرات الساحرة."},
-        {"name": "Lamine Yamal", "clues": "🇪🇸 الظاهرة الإسبانية الشابة، معجزة برشلونة وأورو 2024."},
-        {"name": "Pau Cubarsí", "clues": "🇪🇸 مدافع برشلونة الشاب والذكي في الخروج بالكرة."},
-        {"name": "Raphinha", "clues": "🇧🇷 الجناح البرازيلي المجتهد والخطير في هجوم برشلونة."},
-        {"name": "Ronald Araújo", "clues": "🇺🇾 صخرة الدفاع الأوروغوياني في صفوف برشلونة."},
-        {"name": "Jules Koundé", "clues": "🇫🇷 المدافع الفرنسي الأنيق ومتعدد الاستخدامات في برشلونة."},
-        {"name": "Endrick", "clues": "🇧🇷 الموهبة البرازيلية الشابة والجديدة في ريال مدريد."},
-        {"name": "Arda Güler", "clues": "🇹🇷 ميسي التركي، الموهبة الشابة الرائعة في ريال مدريد."},
-        {"name": "Thibaut Courtois", "clues": "🇧🇪 (تم ذكره مسبقاً)."},
-        {"name": "Zinedine Zidane", "clues": "🇫🇷 أسطورة أساطير فرنسا وريال مدريد، صاحب رأسية 1998 وهدفه الخرافي 2002 (أسطورة تاريخية)."},
-        {"name": "Thierry Henry", "clues": "🇫🇷 الغزال الأسمر، أسطورة أرسنال ومنتخب فرنسا التاريخي."},
-        {"name": "Ronaldinho", "clues": "🇧🇷 ساحر كرة القدم البائع للابتسامة والمهارات الخيالية (برشلونة)."},
-        {"name": "Ronaldo Nazário", "clues": "🇧🇷 البرازيلية الظاهرة، أفضل مهاجم صريح في تاريخ كرة القدم."},
-        {"name": "Pelé", "clues": "🇧🇷 الجوهرة السوداء، الفائز بثلاث كؤوس عالم مع البرازيل."},
-        {"name": "Diego Maradona", "clues": "🇦🇷 أسطورة الأرجنتين، صاحب هدف يد القرد وهدفه المعجزة ضد إنجلترا 1986."},
-        {"name": "Paolo Maldini", "clues": "🇮🇹 أسمى رمز للوفاء الدفاعي، أسطورة ميلان وإيطاليا."},
-        {"name": "Gianluigi Buffon", "clues": "🇮🇹 أسطورة حراسة المرمى التاريخية لإيطاليا."},
-        {"name": "Xavi Hernández", "clues": "🇪🇸 مهندس التكيير والتحكم في إيقاع برشلونة وإسبانيا تاريخياً."},
-        {"name": "Andrés Iniesta", "clues": "🇪🇸 الرسام، صاحب هدف فوز إسبانيا بمونديال 2010 وأسطورة برشلونة."},
-        {"name": "Sergio Ramos", "clues": "🇪🇸 القائد التاريخي والمدافع الهداف لريال مدريد ومنتخب إسبانيا."}
+        {"display": "Riyad Mahrez (رياض محرز)", "answers": ["riyad mahrez", "mahrez", "رياض محرز", "محرز"]},
+        {"display": "Ibrahim Maza (إبراهيم ماصة)", "answers": ["ibrahim maza", "maza", "إبراهيم ماصة", "ابراهيم ماصة", "ماصة"]},
+        {"display": "Youcef Belaili (يوسف بلايلي)", "answers": ["youcef belaili", "belaili", "يوسف بلايلي", "بلايلي"]},
+        {"display": "Islam Slimani (إسلام سليماني)", "answers": ["islam slimani", "slimani", "إسلام سليماني", "سليماني"]},
+        {"display": "Baghdad Bounedjah (بغداد بونجاح)", "answers": ["baghdad bounedjah", "bounedjah", "بغداد بونجاح", "بونجاح"]},
+        {"display": "Rayane Ait Nouri (ريان آيت نوري)", "answers": ["rayane ait nouri", "ait nouri", "ريان آيت نوري", "ايت نوري"]},
+        {"display": "Houssem Aouar (حسام عوار)", "answers": ["houssem aouar", "aouar", "حسام عوار", "عوار"]},
+        {"display": "Ismael Bennacer (إسماعيل بن ناصر)", "answers": ["ismael bennacer", "bennacer", "إسماعيل بن ناصر", "بن ناصر"]},
+        {"display": "Youcef Atal (يوسف عطال)", "answers": ["youcef atal", "atal", "يوسف عطال", "عطال"]},
+        {"display": "Rami Bensebaini (رامي بن سبعيني)", "answers": ["rami bensebaini", "bensebaini", "رامي بن سبعيني", "بن سبعيني"]},
+        {"display": "Mohamed Salah (محمد صلاح)", "answers": ["mohamed salah", "salah", "محمد صلاح", "صلاح"]},
+        {"display": "Achraf Hakimi (أشرف حكيمي)", "answers": ["achraf hakimi", "hakimi", "أشرف حكيمي", "حكيمي"]},
+        {"display": "Yassine Bounou (ياسين بونو)", "answers": ["yassine bounou", "bounou", "ياسين بونو", "بونو"]},
+        {"display": "Hakim Ziyech (حكيم زياش)", "answers": ["hakim ziyech", "ziyech", "حكيم زياش", "زياش"]},
+        {"display": "Lionel Messi (ليونيل ميسي)", "answers": ["lionel messi", "messi", "ليونيل ميسي", "ميسي"]},
+        {"display": "Cristiano Ronaldo (كريستيانو رونالدو)", "answers": ["cristiano ronaldo", "ronaldo", "كريستيانو رونالدو", "رونالدو", "الدون"]},
+        {"display": "Kylian Mbappé (كيليان مبابي)", "answers": ["kylian mbappe", "mbappe", "كيليان مبابي", "مبابي"]},
+        {"display": "Erling Haaland (إيرلينغ هالاند)", "answers": ["erling haaland", "haaland", "إيرلينغ هالاند", "هالاند"]},
+        {"display": "Jude Bellingham (جود بيلينغهام)", "answers": ["jude bellingham", "bellingham", "جود بيلينغهام", "بيلينغهام"]},
+        {"display": "Kevin De Bruyne (كيفين دي بروين)", "answers": ["kevin de bruyne", "de bruyne", "كيفين دي بروين", "دي بروين"]}
     ]
     
     selected = random.choice(players_pool)
-    active_guess_games[interaction.channel.id] = {"answer": selected["name"]}
+    active_guess_games[interaction.channel.id] = {
+        "answers": selected["answers"],
+        "display_name": selected["display"]
+    }
 
     embed = discord.Embed(
         title="⚽ تحدي تخمين اللاعب الذكي!",
-        description=f"من هو اللاعب المقصود بناءً على التلميحات التالية؟\n\n🔍 **التلميحات:** {selected['clues']}\n\n*اكتب اسم اللاعب الصحيح في الشات مباشرة لتربح 3 نقاط!*",
+        description=f"من هو اللاعب المقصود؟\n\n*اكتب اسم اللاعب بالعربية أو الإنجليزية في الشات مباشرة لتربح 3 نقاط!*",
         color=discord.Color.from_rgb(0, 150, 255)
     )
     embed.set_footer(text=f"بواسطة: {interaction.user.name} | أسرع شخص يجيب يفوز!")
@@ -410,7 +324,7 @@ class WarnModal(discord.ui.Modal, title="إنشاء تحذير جديد"):
             if role:
                 await self.member.add_roles(role)
         except Exception as e:
-            print(f"فشل إعطاء الرول: {e}")
+                    print(f"فشل إعطاء الرول: {e}")
 
         kick_status = ""
         if warn_num >= 3:
@@ -462,7 +376,7 @@ async def slash_unwarn(interaction: discord.Interaction, member: discord.Member)
     
     removed_roles_count = 0
     try:
-        roles_to_remove = [r for r in member.roles if "avertissance" in r.name.lower() or "avertissement" in r.name.lower()]
+        roles_to_remove = [r for r in member.roles if "avertissement" in r.name.lower()]
         if roles_to_remove:
             await member.remove_roles(*roles_to_remove)
             removed_roles_count = len(roles_to_remove)
