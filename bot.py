@@ -211,7 +211,7 @@ async def slash_afk(interaction: discord.Interaction, reason: str = "غير مت
     await interaction.response.send_message(embed=embed)
 
 
-# ----------------- قائمة الـ 500 لاعب الضخمة -----------------
+# ----------------- قائمة اللاعبين -----------------
 @bot.tree.command(name="guessplayer", description="ابدأ تحدي لعبة تخمين اللاعب في الشات!")
 async def slash_guessplayer(interaction: discord.Interaction):
     players_pool = [
@@ -278,8 +278,6 @@ async def slash_guessplayer(interaction: discord.Interaction):
         {"display": "Victor Osimhen (فيكتور أوسيمين)", "clues": "🇳🇬 الهداف النيجيري الخطير ونجم نابولي السابق.", "answers": ["victor osimhen", "osimhen", "فيكتور أوسيمين", "أوسيمين"]},
         {"display": "Lautaro Martínez (لاوتارو مارتينيز)", "clues": "🇦🇷 مهاجم وقائد إنتر ميلان الأرجنتيني.", "answers": ["lautaro martinez", "lautaro", "لاوتارو مارتينيز", "لاوتارو"]},
         {"display": "Paulo Dybala (باولو ديبالا)", "clues": "🇦🇷 الجوهرة الأرجنتينية ونجم روما الإيطالي.", "answers": ["paulo dybala", "dybala", "باولو ديبالا", "ديبالا"]},
-        
-        # --- (يمكنك متابعة إضافة بقية اللاعبين ليصلوا إلى 500 بنفس النسق المبرمج هنا بكل سهولة) ---
         {"display": "Pele (بيليه)", "clues": "🇧🇷 أسطورة البرازيل التاريخي، المتوج بثلاثة كؤوس عالم.", "answers": ["pele", "بيليه"]},
         {"display": "Diego Maradona (دييغو مارادونا)", "clues": "🇦🇷 أسطورة الأرجنتين، صاحب هدف 'يد الله' ومونديال 1986.", "answers": ["maradona", "مارادونا", "دييغو"]},
         {"display": "Johan Cruyff (يوهان كرويف)", "clues": "🇳🇱 أسطورة هولندا وأيقونة الكرة الشاملة في برشلونة وأجاكس.", "answers": ["cruyff", "كرويف"]},
@@ -394,9 +392,9 @@ class WarnModal(discord.ui.Modal, title="إنشاء تحذير جديد"):
         )
         
         embed.add_field(name="👤 العضو:", value=f"{self.member.mention}", inline=False)
-        embed.add_field(name="⚖️ العقوبة:", value=`{self.punishment.value}`, inline=False)
-        embed.add_field(name="📌 السبب:", value=f"{self.reason.value}", inline=False)
-        embed.add_field(name="⏳ مدة العقوبة:", value=`{self.duration.value}`, inline=False)
+        embed.add_field(name="⚖️ العقوبة:", value=self.punishment.value, inline=False)
+        embed.add_field(name="📌 السبب:", value=self.reason.value, inline=False)
+        embed.add_field(name="⏳ مدة العقوبة:", value=self.duration.value, inline=False)
         
         if kick_status:
             embed.add_field(name="🚨 حالة إضافية:", value=kick_status, inline=False)
