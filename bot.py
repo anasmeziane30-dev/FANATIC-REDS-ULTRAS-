@@ -259,20 +259,27 @@ async def slash_unwarn(interaction: discord.Interaction, member: discord.Member)
     await interaction.followup.send(embed=embed)
 
 
-# أمر /accepté الجديد (رسالة نصية سرية لك وحدك وتعديل الرتب)
+# أمر /accepté المحدث بالتحقق من وجود الرول ورسالة سرية (Ephemeral)
 @bot.tree.command(name="accepté", description="قبول العضو، سحب رول Nv | Persone وإعطائه رول Member Fanatic")
 @app_commands.describe(member="العضو المراد قبوله")
 @app_commands.checks.has_permissions(manage_roles=True)
 async def slash_accepted(interaction: discord.Interaction, member: discord.Member):
-    # ephemeral=True تعني أن الرد يظهر لك وحدك ولا يراه أحد
     await interaction.response.defer(ephemeral=True)
 
     role_remove_name = "Nv | Persone"
     role_add_name = "Member Fanatic"
 
+    role_to_add = discord.utils.get(interaction.guild.roles, name=role_add_name)
+    
+    # فحص ما إذا كان العضو يملك الرول مسبقاً
+    if role_to_add and role_to_add in member.roles:
+        await interaction.followup.send(f"العضو {member.mention} مقبول من قبل ✅", ephemeral=True)
+        return
+
     removed_status = "❌ لم يتم العثور على رول Nv | Persone"
     added_status = "❌ لم يتم العثور على رول Member Fanatic"
 
+    # سحب الرول القديم
     role_to_remove = discord.utils.get(interaction.guild.roles, name=role_remove_name)
     if role_to_remove and role_to_remove in member.roles:
         try:
@@ -281,7 +288,7 @@ async def slash_accepted(interaction: discord.Interaction, member: discord.Membe
         except Exception as e:
             removed_status = f"فشل إزالة الرول: {e}"
 
-    role_to_add = discord.utils.get(interaction.guild.roles, name=role_add_name)
+    # منح الرول الجديد
     if role_to_add:
         try:
             await member.add_roles(role_to_add)
@@ -290,7 +297,6 @@ async def slash_accepted(interaction: discord.Interaction, member: discord.Membe
             added_status = f"فشل منح الرول: {e}"
 
     result_message = f"تم قبول العضو {member.mention} بنجاح ✅\n- {removed_status}\n- {added_status}"
-
     await interaction.followup.send(result_message, ephemeral=True)
 
 
