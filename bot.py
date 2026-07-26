@@ -81,13 +81,12 @@ async def on_message(message):
         except:
             pass
 
-    # 2. فحص إجابة لعبة تخمين اللاعب (تدعم العربية والإنجليزية بمرونة)
+    # 2. فحص إجابة لعبة تخمين اللاعب
     if message.channel.id in active_guess_games:
         game_data = active_guess_games[message.channel.id]
-        accepted_answers = game_data["answers"] # قائمة الإجابات المقبولة (عربي وإنجليزي)
+        accepted_answers = game_data["answers"]
         user_text = message.content.lower().strip()
         
-        # التحقق مما إذا كانت رسالة المستخدم تطابق أي صيغة مقبولة للإجابة
         matched = any(ans in user_text for ans in accepted_answers)
         
         if matched:
@@ -207,30 +206,20 @@ async def slash_afk(interaction: discord.Interaction, reason: str = "غير مت
     await interaction.response.send_message(embed=embed)
 
 
-# ----------------- قائمة اللاعبين (تدعم العربية والإنجليزية معاً) -----------------
+# ----------------- قائمة اللاعبين مع التلميحات والإجابات المرنة -----------------
 @bot.tree.command(name="guessplayer", description="ابدأ تحدي لعبة تخمين اللاعب في الشات!")
 async def slash_guessplayer(interaction: discord.Interaction):
     players_pool = [
-        {"display": "Riyad Mahrez (رياض محرز)", "answers": ["riyad mahrez", "mahrez", "رياض محرز", "محرز"]},
-        {"display": "Ibrahim Maza (إبراهيم ماصة)", "answers": ["ibrahim maza", "maza", "إبراهيم ماصة", "ابراهيم ماصة", "ماصة"]},
-        {"display": "Youcef Belaili (يوسف بلايلي)", "answers": ["youcef belaili", "belaili", "يوسف بلايلي", "بلايلي"]},
-        {"display": "Islam Slimani (إسلام سليماني)", "answers": ["islam slimani", "slimani", "إسلام سليماني", "سليماني"]},
-        {"display": "Baghdad Bounedjah (بغداد بونجاح)", "answers": ["baghdad bounedjah", "bounedjah", "بغداد بونجاح", "بونجاح"]},
-        {"display": "Rayane Ait Nouri (ريان آيت نوري)", "answers": ["rayane ait nouri", "ait nouri", "ريان آيت نوري", "ايت نوري"]},
-        {"display": "Houssem Aouar (حسام عوار)", "answers": ["houssem aouar", "aouar", "حسام عوار", "عوار"]},
-        {"display": "Ismael Bennacer (إسماعيل بن ناصر)", "answers": ["ismael bennacer", "bennacer", "إسماعيل بن ناصر", "بن ناصر"]},
-        {"display": "Youcef Atal (يوسف عطال)", "answers": ["youcef atal", "atal", "يوسف عطال", "عطال"]},
-        {"display": "Rami Bensebaini (رامي بن سبعيني)", "answers": ["rami bensebaini", "bensebaini", "رامي بن سبعيني", "بن سبعيني"]},
-        {"display": "Mohamed Salah (محمد صلاح)", "answers": ["mohamed salah", "salah", "محمد صلاح", "صلاح"]},
-        {"display": "Achraf Hakimi (أشرف حكيمي)", "answers": ["achraf hakimi", "hakimi", "أشرف حكيمي", "حكيمي"]},
-        {"display": "Yassine Bounou (ياسين بونو)", "answers": ["yassine bounou", "bounou", "ياسين بونو", "بونو"]},
-        {"display": "Hakim Ziyech (حكيم زياش)", "answers": ["hakim ziyech", "ziyech", "حكيم زياش", "زياش"]},
-        {"display": "Lionel Messi (ليونيل ميسي)", "answers": ["lionel messi", "messi", "ليونيل ميسي", "ميسي"]},
-        {"display": "Cristiano Ronaldo (كريستيانو رونالدو)", "answers": ["cristiano ronaldo", "ronaldo", "كريستيانو رونالدو", "رونالدو", "الدون"]},
-        {"display": "Kylian Mbappé (كيليان مبابي)", "answers": ["kylian mbappe", "mbappe", "كيليان مبابي", "مبابي"]},
-        {"display": "Erling Haaland (إيرلينغ هالاند)", "answers": ["erling haaland", "haaland", "إيرلينغ هالاند", "هالاند"]},
-        {"display": "Jude Bellingham (جود بيلينغهام)", "answers": ["jude bellingham", "bellingham", "جود بيلينغهام", "بيلينغهام"]},
-        {"display": "Kevin De Bruyne (كيفين دي بروين)", "answers": ["kevin de bruyne", "de bruyne", "كيفين دي بروين", "دي بروين"]}
+        {"display": "Riyad Mahrez (رياض محرز)", "clues": "🇩🇿 يلعب في المنتخب الجزائري، فاز بدوري أبطال أوروبا مع مانشستر سيتي.", "answers": ["riyad mahrez", "mahrez", "رياض محرز", "محرز"]},
+        {"display": "Ibrahim Maza (إبراهيم ماصة)", "clues": "🇩🇿 موهبة جزائرية صاعدة، يلعب في الدوري الألماني وصانع ألعاب بارز.", "answers": ["ibrahim maza", "maza", "إبراهيم ماصة", "ابراهيم ماصة", "ماصة"]},
+        {"display": "Youcef Belaili (يوسف بلايلي)", "clues": "🇩🇿 نجم الخضر، معروف بمهاراته الفردية العالية.", "answers": ["youcef belaili", "belaili", "يوسف بلايلي", "بلايلي"]},
+        {"display": "Islam Slimani (إسلام سليماني)", "clues": "🇩🇿 الهداف التاريخي للمنتخب الجزائري، برع في الكرات الهوائية.", "answers": ["islam slimani", "slimani", "إسلام سليماني", "سليماني"]},
+        {"display": "Baghdad Bounedjah (بغداد بونجاح)", "clues": "🇩🇿 مهاجم قناص، صاحب هدف نهائي أمم إفريقيا 2019 ضد السنغال.", "answers": ["baghdad bounedjah", "bounedjah", "بغداد بونجاح", "بونجاح"]},
+        {"display": "Lionel Messi (ليونيل ميسي)", "clues": "🇦🇷 الأسطورة الحائز على 8 كرات ذهبية، بطل العالم 2022.", "answers": ["lionel messi", "messi", "ليونيل ميسي", "ميسي"]},
+        {"display": "Cristiano Ronaldo (كريستيانو رونالدو)", "clues": "🇵🇹 الدون، هداف العالم التاريخي وأسطورة ريال مدريد ومانشستر يونايتد.", "answers": ["cristiano ronaldo", "ronaldo", "كريستيانو رونالدو", "رونالدو", "الدون"]},
+        {"display": "Kylian Mbappé (كيليان مبابي)", "clues": "🇫🇷 نجم فرنسا السريع، بطل العالم 2018 وهداف ريال مدريد.", "answers": ["kylian mbappe", "mbappe", "كيليان مبابي", "مبابي"]},
+        {"display": "Erling Haaland (إيرلينغ هالاند)", "clues": "🇳🇴 ماكينة الأهداف النرويجية، مرعب المدافعين في مانشستر سيتي.", "answers": ["erling haaland", "haaland", "إيرلينغ هالاند", "هالاند"]},
+        {"display": "Kevin De Bruyne (كيفين دي بروين)", "clues": "🇧🇪 مهندس وقائد خط وسط مانشستر سيتي، ملك التمريرات الحاسمة.", "answers": ["kevin de bruyne", "de bruyne", "كيفين دي بروين", "دي بروين"]}
     ]
     
     selected = random.choice(players_pool)
@@ -241,7 +230,7 @@ async def slash_guessplayer(interaction: discord.Interaction):
 
     embed = discord.Embed(
         title="⚽ تحدي تخمين اللاعب الذكي!",
-        description=f"من هو اللاعب المقصود؟\n\n*اكتب اسم اللاعب بالعربية أو الإنجليزية في الشات مباشرة لتربح 3 نقاط!*",
+        description=f"من هو اللاعب المقصود بناءً على التلميحات التالية؟\n\n🔍 **التلميحات:** {selected['clues']}\n\n*اكتب اسم اللاعب (مثل: محرز، ميسي...) في الشات مباشرة لتربح 3 نقاط!*",
         color=discord.Color.from_rgb(0, 150, 255)
     )
     embed.set_footer(text=f"بواسطة: {interaction.user.name} | أسرع شخص يجيب يفوز!")
@@ -324,7 +313,7 @@ class WarnModal(discord.ui.Modal, title="إنشاء تحذير جديد"):
             if role:
                 await self.member.add_roles(role)
         except Exception as e:
-                    print(f"فشل إعطاء الرول: {e}")
+            print(f"فشل إعطاء الرول: {e}")
 
         kick_status = ""
         if warn_num >= 3:
