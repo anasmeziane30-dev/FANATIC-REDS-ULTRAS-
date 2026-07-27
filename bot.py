@@ -82,7 +82,7 @@ async def on_message(message):
     content = message.content.lower().strip()
 
     if "السلام عليكم" in content or "سَلام عليكم" in content or "salam" in content:
-        await message.reply(f"وعليكم السلام ورحمة الله وبركاته، أنرت السيرفر يا {message.author.mention}! 💜")
+        await message.reply(f"وعليكم السلام ورحمة الله وبركاته،  يا {message.author.mention}! 💜")
     elif "قوانين" in content or "الوانين" in content:
         await message.channel.send(f"📌 يرجى احترام قوانين السيرفر لتجنب العقوبات يا {message.author.mention}.")
     elif "دعم" in content or "support" in content:
@@ -288,6 +288,7 @@ class WarnModal(discord.ui.Modal, title="إنشاء تحذير جديد"):
             description=f"  👤 **العضو المخالف:** {self.member.mention}\n  ⚖️ **العقوبة المطبقة:** `{self.punishment.value}`\n  📌 **سبب التحذير:** `{self.reason.value}`\n  ⏳ **مدة العقوبة:** `{self.duration.value}`{kick_status}",
             color=discord.Color.from_rgb(138, 43, 226)
         )
+                       𝑼𝑳𝑻𝑹𝑨𝑺 𝑭𝑨𝑵𝑨𝑻𝑰𝑪 𝑹𝑬𝑫𝑺 
         await interaction.followup.send(embed=embed)
 
 @bot.tree.command(name="warn", description="إرسال تحذير وتطبيق العقوبة")
