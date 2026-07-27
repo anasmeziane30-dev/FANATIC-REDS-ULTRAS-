@@ -199,12 +199,21 @@ async def notify(ctx, *, message: str = ""):
     await ctx.send(f"✅ تم إرسال التنبيه في الخاص إلى `{success_count}` عضواً مع الصورة.", delete_after=10)
 
 
-# ----------------- نظام الأغاني (!play) -----------------
+# ----------------- نظام الأغاني بالبحث عن الاسم (!play) -----------------
 ytdl_format_options = {
     'format': 'bestaudio/best',
-    'nostats': True,
+    'extractaudio': True,
+    'audioformat': 'mp3',
+    'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
+    'restrictfilenames': True,
     'noplaylist': True,
-    'default_search': 'auto',
+    'nocheckcertificate': True,
+    'ignoreerrors': False,
+    'logtostderr': False,
+    'quiet': True,
+    'no_warnings': True,
+    'default_search': 'ytsearch1', # البحث عن أول نتيجة مطابقة تلقائياً بالاسم
+    'source_address': '0.0.0.0',
 }
 
 ytdl = yt_dlp.YoutubeDL(ytdl_format_options)
@@ -217,9 +226,13 @@ class YTDLSource(discord.PCMVolumeTransformer):
         self.url = data.get('url')
 
     @classmethod
-    async def from_url(cls, url, *, loop=None, stream=True):
+    async def from_url(cls, search_query, *, loop=None, stream=True):
         loop = loop or asyncio.get_event_loop()
-        data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=not stream))
+        
+        # إذا لم يكن رابطاً، اجعله يبحث تلقائياً باستخدام ytsearch1
+        search = search_query if search_query.startswith("http") else f"ytsearch1:{search_query}"
+        
+        data = await loop.run_in_executor(None, lambda: ytdl.extract_info(search, download=not stream))
         
         if 'entries' in data:
             data = data['entries'][0]
@@ -227,7 +240,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
         filename = data['url'] if stream else ytdl.prepare_filename(data)
         return cls(discord.FFmpegPCMAudio(filename, executable="ffmpeg", options="-vn"), data=data)
 
-@bot.command(name='play', help='تشغيل أغنية من اليوتيوب')
+@bot.command(name='play', help='تشغيل أغنية بالاسم أو الرابط')
 async def play(ctx, *, search: str):
     if not ctx.author.voice:
         return await ctx.send("❌ يجب أن تكون متصلاً بقناة صوتية أولاً!")
@@ -244,7 +257,7 @@ async def play(ctx, *, search: str):
             player = await YTDLSource.from_url(search, loop=bot.loop, stream=True)
             ctx.voice_client.play(player, after=lambda e: print(f'Player error: {e}') if e else None)
         except Exception as e:
-            return await ctx.send(f"❌ حدث خطأ أثناء التشغيل: `{e}`")
+            return await ctx.send(f"❌ حدث خطأ أثناء البحث أو التشغيل: `{e}`")
 
     await ctx.send(f"🎶 جاري تشغيل الآن: **{player.title}**")
 
@@ -331,7 +344,7 @@ class WarnModal(discord.ui.Modal, title="إنشاء تحذير جديد"):
         kick_status = ""
         if warn_num >= 3:
             try:
-                await self.member.kick(reason="تجاوز الحد الأقصى للتحذيرات")
+                await self.member.kick(reason="تجاوز الحد الأقص للتحذيرات")
                 kick_status = "\n\n🚨 **[إجراء تلقائي]: تم طرد العضو (Kick) لتخطيه 3 تحذيرات!**"
             except Exception as e:
                 kick_status = f"\n\n❌ **فشل الطرد:** {e}"
