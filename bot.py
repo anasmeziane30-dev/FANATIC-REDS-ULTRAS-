@@ -10,6 +10,7 @@ from flask import Flask
 from threading import Thread
 import yt_dlp
 
+# إعداد خادم الحفاظ على النشاط (Keep-Alive)
 app = Flask('')
 
 @app.route('/')
@@ -23,6 +24,7 @@ def keep_alive():
     t = Thread(target=run)
     t.start()
 
+# إعداد قاعدة البيانات
 db = sqlite3.connect('points.db')
 cursor = db.cursor()
 
@@ -56,6 +58,52 @@ intents.members = True
 
 bot = commands.Bot(command_prefix='!', intents=intents)
 
+# ----------------- إعدادات الصوت (yt-dlp) للبحث بالاسم -----------------
+
+yt_dlp.utils.bug_reports_message = lambda: ''
+
+ytdl_format_options = {
+    'format': 'bestaudio/best',
+    'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
+    'restrictfilenames': True,
+    'noplaylist': True,
+    'nocheckcertificate': True,
+    'ignoreerrors': False,
+    'logtostderr': False,
+    'quiet': True,
+    'no_warnings': True,
+    'default_search': 'auto',
+    'source_address': '0.0.0.0',
+}
+
+ffmpeg_options = {
+    'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
+    'options': '-vn',
+}
+
+ytdl = yt_dlp.YoutubeDL(ytdl_format_options)
+
+class YTDLSource(discord.PCMVolumeTransformer):
+    def __init__(self, source, *, data, volume=0.5):
+        super().__init__(source, volume)
+        self.data = data
+        self.title = data.get('title')
+        self.url = data.get('url')
+
+    @classmethod
+    async def from_url(cls, url, *, loop=None, stream=False):
+        loop = loop or asyncio.get_event_loop()
+        data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=not stream))
+        
+        if 'entries' in data:
+            #خذ أول نتيجة بحث مطابقة للاسم
+            data = data['entries'][0]
+
+        filename = data['url'] if stream else ytdl.prepare_filename(data)
+        return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data=data)
+
+# ----------------- الأحداث الأساسية -----------------
+
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user.name}')
@@ -64,8 +112,6 @@ async def on_ready():
         print(f"Synced {len(synced)} slash commands.")
     except Exception as e:
         print(e)
-
-# ----------------- الأحداث التلقائية -----------------
 
 @bot.event
 async def on_member_join(member):
@@ -90,6 +136,7 @@ async def on_message(message):
     elif "دعم" in content or "support" in content:
         await message.channel.send(f"🛠️ يمكنك فتح تذكرة أو طلب المساعدة من الإدارة يا {message.author.mention}.")
 
+    # نظام منع الروابط
     if ("http://" in message.content or "https://" in message.content or "discord.gg/" in message.content):
         if not message.author.guild_permissions.manage_messages:
             try:
@@ -99,6 +146,7 @@ async def on_message(message):
             except:
                 pass
 
+    # نظام الـ AFK التلقائي
     cursor.execute('SELECT * FROM afk_system WHERE user_id = ?', (message.author.id,))
     afk_data = cursor.fetchone()
     if afk_data:
@@ -119,7 +167,47 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
-# ----------------- الأوامر العادية -----------------
+# ----------------- أمر التشغيل بالاسم (Play) -----------------
+
+@bot.command(name='play', help='تشغيل أغنية بالاسم أو الرابط')
+async def play(ctx, *, search: str):
+    if not ctx.author.voice:
+        return await ctx.send(f"❌ {ctx.author.mention}, يجب أن تكون متصلاً بقناة صوتية أولاً!")
+
+    channel = ctx.author.voice.channel
+    
+    if ctx.voice_client is not None:
+        if ctx.voice_client.channel != channel:
+            await ctx.voice_client.move_to(channel)
+    else:
+        try:
+            await channel.connect()
+        except Exception as e:
+            return await ctx.send(f"❌ لم أستطع الدخول للقناة الصوتية: `{e}`")
+
+    async with ctx.typing():
+        try:
+            # إذا لم يكن رابطاً، أضف بادئة البحث التلقائي بالاسم
+            query = search if search.startswith("http") else f"ytsearch:{search}"
+            player = await YTDLSource.from_url(query, loop=bot.loop, stream=True)
+            
+            if ctx.voice_client.is_playing():
+                ctx.voice_client.stop()
+                
+            ctx.voice_client.play(player, after=lambda e: print(f'Player error: {e}') if e else None)
+            await ctx.send(f"🎶 جاري تشغيل الآن: **{player.title}**")
+        except Exception as e:
+            await ctx.send(f"❌ حدث خطأ أثناء جلب الأغنية. تأكد من تثبيت مكتبة `yt-dlp` و `FFmpeg`.\nالخطأ: `{e}`")
+
+@bot.command(name='stop', help='إيقاف الصوت وإخراج البوت')
+async def stop(ctx):
+    if ctx.voice_client:
+        await ctx.voice_client.disconnect()
+        await ctx.send("⏹️ تم إيقاف التشغيل ومغادرة القناة الصوتية.")
+    else:
+        await ctx.send("❌ البوت ليس متصلاً بأي قناة صوتية.")
+
+# ----------------- باقي الأوامر (نقاط التقدير، التحذيرات، إلخ) -----------------
 
 @bot.command(name='say')
 async def say(ctx, *, message: str):
@@ -199,70 +287,7 @@ async def notify(ctx, *, message: str = ""):
     await ctx.send(f"✅ تم إرسال التنبيه في الخاص إلى `{success_count}` عضواً مع الصورة.", delete_after=10)
 
 
-# ----------------- نظام الأغاني بالبحث عن الاسم (!play) -----------------
-ytdl_format_options = {
-    'format': 'bestaudio/best',
-    'extractaudio': True,
-    'audioformat': 'mp3',
-    'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
-    'restrictfilenames': True,
-    'noplaylist': True,
-    'nocheckcertificate': True,
-    'ignoreerrors': False,
-    'logtostderr': False,
-    'quiet': True,
-    'no_warnings': True,
-    'default_search': 'ytsearch1', # البحث عن أول نتيجة مطابقة تلقائياً بالاسم
-    'source_address': '0.0.0.0',
-}
-
-ytdl = yt_dlp.YoutubeDL(ytdl_format_options)
-
-class YTDLSource(discord.PCMVolumeTransformer):
-    def __init__(self, source, *, data, volume=0.5):
-        super().__init__(source, volume)
-        self.data = data
-        self.title = data.get('title')
-        self.url = data.get('url')
-
-    @classmethod
-    async def from_url(cls, search_query, *, loop=None, stream=True):
-        loop = loop or asyncio.get_event_loop()
-        
-        # إذا لم يكن رابطاً، اجعله يبحث تلقائياً باستخدام ytsearch1
-        search = search_query if search_query.startswith("http") else f"ytsearch1:{search_query}"
-        
-        data = await loop.run_in_executor(None, lambda: ytdl.extract_info(search, download=not stream))
-        
-        if 'entries' in data:
-            data = data['entries'][0]
-
-        filename = data['url'] if stream else ytdl.prepare_filename(data)
-        return cls(discord.FFmpegPCMAudio(filename, executable="ffmpeg", options="-vn"), data=data)
-
-@bot.command(name='play', help='تشغيل أغنية بالاسم أو الرابط')
-async def play(ctx, *, search: str):
-    if not ctx.author.voice:
-        return await ctx.send("❌ يجب أن تكون متصلاً بقناة صوتية أولاً!")
-
-    channel = ctx.author.voice.channel
-    
-    if ctx.voice_client is not None:
-        await ctx.voice_client.move_to(channel)
-    else:
-        await channel.connect()
-
-    async with ctx.typing():
-        try:
-            player = await YTDLSource.from_url(search, loop=bot.loop, stream=True)
-            ctx.voice_client.play(player, after=lambda e: print(f'Player error: {e}') if e else None)
-        except Exception as e:
-            return await ctx.send(f"❌ حدث خطأ أثناء البحث أو التشغيل: `{e}`")
-
-    await ctx.send(f"🎶 جاري تشغيل الآن: **{player.title}**")
-
-
-# ----------------- أوامر السلاش -----------------
+# ----------------- أوامر السلاش (Slash Commands) -----------------
 
 @bot.tree.command(name="afk", description="تسجيل أنك غائب عن الجهاز (AFK)")
 @app_commands.describe(reason="سبب الغياب (اختياري)")
@@ -344,7 +369,7 @@ class WarnModal(discord.ui.Modal, title="إنشاء تحذير جديد"):
         kick_status = ""
         if warn_num >= 3:
             try:
-                await self.member.kick(reason="تجاوز الحد الأقص للتحذيرات")
+                await self.member.kick(reason="تجاوز الحد الأقصى للتحذيرات")
                 kick_status = "\n\n🚨 **[إجراء تلقائي]: تم طرد العضو (Kick) لتخطيه 3 تحذيرات!**"
             except Exception as e:
                 kick_status = f"\n\n❌ **فشل الطرد:** {e}"
