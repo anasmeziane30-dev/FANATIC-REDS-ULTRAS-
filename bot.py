@@ -130,9 +130,9 @@ async def on_message(message):
     content = message.content.lower().strip()
 
     if "السلام عليكم" in content or "سَلام عليكم" in content or "salam" in content:
-        await message.reply(f"وعليكم السلام ورحمة الله وبركاته، أنرت السيرفر يا {message.author.mention}! 💜")
-    elif "قوانين" in content or "الوانين" in content:
-        await message.channel.send(f"📌 يرجى احترام قوانين السيرفر لتجنب العقوبات يا {message.author.mention}.")
+        await message.reply(f"وعليكم السلام ورحمة الله وبركاته، يا {message.author.mention}! 💜")
+    elif "قوانين" in content or "كمك. نعطزمك. نكمك. نيك مك.  نعطيز" in content:
+        await message.channel.send(f"📌 اتربى يا {message.author.mention}.")
     elif "دعم" in content or "support" in content:
         await message.channel.send(f"🛠️ يمكنك فتح تذكرة أو طلب المساعدة من الإدارة يا {message.author.mention}.")
 
