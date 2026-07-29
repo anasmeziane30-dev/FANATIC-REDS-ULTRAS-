@@ -131,7 +131,7 @@ async def on_message(message):
 
     if "السلام عليكم" in content or "سَلام عليكم" in content or "salam" in content:
         await message.reply(f"وعليكم السلام ورحمة الله وبركاته، يا {message.author.mention}! 💜")
-    elif "قوانين" in content or "كمك. نعطزمك. نكمك. نيك مك.  نعطيز" in content:
+    elif ". نعطزمك. نكمك. نيك مك.   كمك نقش عطاي nikmok kmk nkmk" in content or "كمك. نعطزمك. نكمك. نيك مك.  نعطيز" in content:
         await message.channel.send(f"📌 اتربى يا {message.author.mention}.")
     elif "دعم" in content or "support" in content:
         await message.channel.send(f"🛠️ يمكنك فتح تذكرة أو طلب المساعدة من الإدارة يا {message.author.mention}.")
