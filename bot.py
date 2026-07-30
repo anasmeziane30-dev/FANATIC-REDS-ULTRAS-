@@ -49,6 +49,23 @@ cursor.execute('''
         time TIMESTAMP
     )
 ''')
+
+# جدول نظام الغيابات العادية
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS absences (
+        user_id INTEGER PRIMARY KEY,
+        reason TEXT,
+        date TEXT
+    )
+''')
+
+# جدول نظام الغياب بدون مبرر الجديد
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS unexcused_absences (
+        user_id INTEGER PRIMARY KEY,
+        count INTEGER
+    )
+''')
 db.commit()
 
 intents = discord.Intents.default()
@@ -96,7 +113,6 @@ class YTDLSource(discord.PCMVolumeTransformer):
         data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=not stream))
         
         if 'entries' in data:
-            #خذ أول نتيجة بحث مطابقة للاسم
             data = data['entries'][0]
 
         filename = data['url'] if stream else ytdl.prepare_filename(data)
@@ -130,9 +146,9 @@ async def on_message(message):
     content = message.content.lower().strip()
 
     if "السلام عليكم" in content or "سَلام عليكم" in content or "salam" in content:
-        await message.reply(f"وعليكم السلام ورحمة الله وبركاته، يا {message.author.mention}! 💜")
-    elif ". نعطزمك. نكمك. نيك مك.   كمك نقش عطاي nikmok kmk nkmk" in content or "كمك. نعطزمك. نكمك. نيك مك.  نعطيز" in content:
-        await message.channel.send(f"📌 اتربى يا {message.author.mention}.")
+        await message.reply(f"وعليكم السلام ورحمة الله وبركاته، أنرت السيرفر يا {message.author.mention}! 💜")
+    elif "قوانين" in content or "الوانين" in content:
+        await message.channel.send(f"📌 يرجى احترام قوانين السيرفر لتجنب العقوبات يا {message.author.mention}.")
     elif "دعم" in content or "support" in content:
         await message.channel.send(f"🛠️ يمكنك فتح تذكرة أو طلب المساعدة من الإدارة يا {message.author.mention}.")
 
@@ -187,7 +203,6 @@ async def play(ctx, *, search: str):
 
     async with ctx.typing():
         try:
-            # إذا لم يكن رابطاً، أضف بادئة البحث التلقائي بالاسم
             query = search if search.startswith("http") else f"ytsearch:{search}"
             player = await YTDLSource.from_url(query, loop=bot.loop, stream=True)
             
@@ -207,7 +222,7 @@ async def stop(ctx):
     else:
         await ctx.send("❌ البوت ليس متصلاً بأي قناة صوتية.")
 
-# ----------------- باقي الأوامر (نقاط التقدير، التحذيرات، إلخ) -----------------
+# ----------------- باقي الأوامر العادية -----------------
 
 @bot.command(name='say')
 async def say(ctx, *, message: str):
@@ -286,7 +301,6 @@ async def notify(ctx, *, message: str = ""):
             
     await ctx.send(f"✅ تم إرسال التنبيه في الخاص إلى `{success_count}` عضواً مع الصورة.", delete_after=10)
 
-
 # ----------------- أوامر السلاش (Slash Commands) -----------------
 
 @bot.tree.command(name="afk", description="تسجيل أنك غائب عن الجهاز (AFK)")
@@ -315,6 +329,148 @@ async def slash_clear(interaction: discord.Interaction, amount: int):
     await interaction.response.defer(ephemeral=True)
     deleted = await interaction.channel.purge(limit=amount)
     await interaction.followup.send(f"✅ تم مسح `{len(deleted)}` رسالة بنجاح.", ephemeral=True)
+
+# ----------------- نظام الغيابات العادية -----------------
+
+@bot.tree.command(name="absent", description="تسجيل غياب عضو في السيرفر (للإدارة)")
+@app_commands.describe(member="العضو المتغيب", reason="سبب الغياب")
+@app_commands.checks.has_permissions(manage_roles=True)
+async def slash_absent(interaction: discord.Interaction, member: discord.Member, reason: str):
+    current_date = datetime.datetime.now().strftime("%Y-%m-%d")
+    cursor.execute('INSERT OR REPLACE INTO absences (user_id, reason, date) VALUES (?, ?, ?)', 
+                   (member.id, reason, current_date))
+    db.commit()
+
+    embed = discord.Embed(
+        title="📋 تسجيل غياب جديد",
+        description=f"👤 **العضو:** {member.mention}\n📌 **السبب:** `{reason}`\n📅 **التاريخ:** `{current_date}`",
+        color=discord.Color.red()
+    )
+    await interaction.response.send_message(embed=embed)
+
+@bot.tree.command(name="absence_list", description="عرض قائمة الأعضاء الغائبين حالياً")
+async def slash_absence_list(interaction: discord.Interaction):
+    cursor.execute('SELECT user_id, reason, date FROM absences')
+    absences = cursor.fetchall()
+
+    if not absences:
+        await interaction.response.send_message("📭 لا يوجد أي أعضاء مسجلين في قائمة الغياب حالياً.", ephemeral=True)
+        return
+
+    embed = discord.Embed(
+        title="📋 قائمة غيابات الأعضاء",
+        color=discord.Color.gold()
+    )
+
+    for user_id, reason, date in absences:
+        member = interaction.guild.get_member(user_id)
+        member_name = member.mention if member else f"مستخدم مغادر (ID: {user_id})"
+        embed.add_field(
+            name=f"العضو: {member_name}",
+            value=f"📌 **السبب:** {reason}\n📅 **تاريخ التسجيل:** {date}",
+            inline=False
+        )
+
+    await interaction.response.send_message(embed=embed)
+
+@bot.tree.command(name="remove_absence", description="إزالة عضو من قائمة الغياب (للإدارة)")
+@app_commands.describe(member="العضو المراد إزالته من قائمة الغياب")
+@app_commands.checks.has_permissions(manage_roles=True)
+async def slash_remove_absence(interaction: discord.Interaction, member: discord.Member):
+    cursor.execute('SELECT * FROM absences WHERE user_id = ?', (member.id,))
+    result = cursor.fetchone()
+
+    if not result:
+        await interaction.response.send_message(f"❌ العضو {member.mention} ليس مسجلاً في قائمة الغياب أصلاً.", ephemeral=True)
+        return
+
+    cursor.execute('DELETE FROM absences WHERE user_id = ?', (member.id,))
+    db.commit()
+
+    await interaction.response.send_message(f"✅ تم حذف العضو {member.mention} من قائمة الغيابات بنجاح.", ephemeral=True)
+
+
+# ----------------- نظام الغياب بدون مبرر (تلقائي الحظر عند المرة 2) -----------------
+
+@bot.tree.command(name="absent_unexcused", description="تسجيل غياب بدون مبرر (يحظر العضو عند المرة 2)")
+@app_commands.describe(member="العضو المتغيب بدون مبرر")
+@app_commands.checks.has_permissions(manage_roles=True)
+async def slash_absent_unexcused(interaction: discord.Interaction, member: discord.Member):
+    await interaction.response.defer(thinking=True)
+
+    cursor.execute('SELECT count FROM unexcused_absences WHERE user_id = ?', (member.id,))
+    result = cursor.fetchone()
+
+    if result is None:
+        absent_count = 1
+        cursor.execute('INSERT INTO unexcused_absences (user_id, count) VALUES (?, ?)', (member.id, absent_count))
+    else:
+        absent_count = result[0] + 1
+        cursor.execute('UPDATE unexcused_absences SET count = ? WHERE user_id = ?', (absent_count, member.id))
+    
+    db.commit()
+
+    ban_status = ""
+    if absent_count >= 2:
+        try:
+            await member.ban(reason="تخطي الحد الأقصى للغياب بدون مبرر (مرتين)")
+            ban_status = "\n\n🚨 **[إجراء تلقائي]: تم حظر (Ban) العضو لتجاوزه مرتين غياب بدون مبرر!**"
+            cursor.execute('DELETE FROM unexcused_absences WHERE user_id = ?', (member.id,))
+            db.commit()
+        except Exception as e:
+            ban_status = f"\n\n❌ **فشل الحظر:** {e}"
+
+    embed = discord.Embed(
+        title=f"⚠️ [ غياب بدون مبرر | المرور رقم {absent_count} ]",
+        description=f"👤 **العضو:** {member.mention}\n📊 **عدد مرات الغياب بدون مبرر:** `{absent_count}/2`{ban_status}",
+        color=discord.Color.dark_red()
+    )
+    await interaction.followup.send(embed=embed)
+
+@bot.tree.command(name="absence_unexcused_list", description="عرض قائمة الغياب بدون مبرر للأعضاء")
+@app_commands.checks.has_permissions(manage_roles=True)
+async def slash_absence_unexcused_list(interaction: discord.Interaction):
+    cursor.execute('SELECT user_id, count FROM unexcused_absences')
+    records = cursor.fetchall()
+
+    if not records:
+        await interaction.response.send_message("📭 لا يوجد أي أعضاء مسجلين في قائمة الغياب بدون مبرر.", ephemeral=True)
+        return
+
+    embed = discord.Embed(
+        title="⚠️ قائمة الغياب بدون مبرر",
+        color=discord.Color.orange()
+    )
+
+    for user_id, count in records:
+        member = interaction.guild.get_member(user_id)
+        member_name = member.mention if member else f"مستخدم مغادر (ID: {user_id})"
+        embed.add_field(
+            name=f"العضو: {member_name}",
+            value=f"📊 **عدد المرات:** `{count}/2`",
+            inline=False
+        )
+
+    await interaction.response.send_message(embed=embed)
+
+@bot.tree.command(name="remove_unexcused", description="إزالة سجل الغياب بدون مبرر عن عضو (للإدارة)")
+@app_commands.describe(member="العضو المراد تصحيح سجله")
+@app_commands.checks.has_permissions(manage_roles=True)
+async def slash_remove_unexcused(interaction: discord.Interaction, member: discord.Member):
+    cursor.execute('SELECT * FROM unexcused_absences WHERE user_id = ?', (member.id,))
+    result = cursor.fetchone()
+
+    if not result:
+        await interaction.response.send_message(f"❌ العضو {member.mention} ليس لديه أي غيابات مسجلة بدون مبرر.", ephemeral=True)
+        return
+
+    cursor.execute('DELETE FROM unexcused_absences WHERE user_id = ?', (member.id,))
+    db.commit()
+
+    await interaction.response.send_message(f"✅ تم تصفير وإزالة سجل الغياب بدون مبرر لـ {member.mention} بنجاح.", ephemeral=True)
+
+
+# ----------------- نظام التحذيرات (Warnings) -----------------
 
 class WarnModal(discord.ui.Modal, title="إنشاء تحذير جديد"):
     def __init__(self, member: discord.Member):
