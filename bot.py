@@ -76,6 +76,10 @@ intents.moderation = True
 
 bot = commands.Bot(command_prefix='!', intents=intents)
 
+# ----------------- قائمة الكلمات البذيئة الممنوعة -----------------
+# أضف الكلمات النابية التي تريد حظرها بين علامات التنصيص مفصولة بفواصل
+bad_words = ["كمك", "kmk", "نعطزمك","عطاي"]
+
 # ----------------- نظام الحماية المتطور (Anti-Spam & Protection) -----------------
 message_tracker = {}
 
@@ -92,16 +96,42 @@ async def on_message(message):
 
     content = message.content.lower().strip()
 
+    # 1. نظام فلترة الكلمات البذيئة
+    if not is_admin:
+        contains_bad_word = False
+        message_content_lower = message.content.lower()
+        
+        for word in bad_words:
+            if word in message_content_lower:
+                contains_bad_word = True
+                break
+                
+        if contains_bad_word:
+            try:
+                # حذف الرسالة الأصلية التي تحتوي على الكلام البذيء
+                await message.delete()
+                
+                # إرسال التنبيه مع عبارة احشم راك كبير
+                warning_msg = await message.channel.send(
+                    f"⚠️ احشم راك كبير يا {message.author.mention}! ممنوع استخدام هذه الكلمات هنا (تم حجب الكلمة بـ ***)."
+                )
+                
+                # حذف التنبيه تلقائياً بعد 7 ثوانٍ لعدم إزعاج الشات
+                await asyncio.sleep(7)
+                await warning_msg.delete()
+                return
+            except Exception as e:
+                print(f"خطأ في نظام الكلمات البذيئة: {e}")
+
     # نظام الترحيب والكلمات البسيطة
     if "السلام عليكم" in content or "سَلام عليكم" in content or "salam" in content:
         await message.reply(f"وعليكم السلام ورحمة الله وبركاته، أنرت السيرفر يا {message.author.mention}! 💜")
-    elif "كمك" in content or "kmk" in content:
-        await message.channel.send(f"📌 احشم راك كبير {message.author.mention}.")
+    elif "قوانين" in content or "الوانين" in content:
+        await message.channel.send(f"📌 يرجى احترام قوانين السيرفر لتجنب العقوبات يا {message.author.mention}.")
     elif "دعم" in content or "support" in content:
         await message.channel.send(f"🛠️ يمكنك فتح تذكرة أو طلب المساعدة من الإدارة يا {message.author.mention}.")
-        elif "نعطزمك" in content or "nikmok" in content:
-        await message.channel.send(f"🛠️احشم راك كبير {message.author.mention}.")
-    # 1. نظام منع الروابط ودعوات ديسكورد
+
+    # 2. نظام منع الروابط ودعوات ديسكورد
     if not is_admin and ("http://" in message.content or "https://" in message.content or "discord.gg/" in message.content or "discord.com/invite/" in message.content):
         try:
             await message.delete()
@@ -110,7 +140,7 @@ async def on_message(message):
         except:
             pass
 
-    # 2. نظام منع السبام (Anti-Spam)
+    # 3. نظام منع السبام (Anti-Spam)
     if not is_admin:
         if author_id not in message_tracker:
             message_tracker[author_id] = []
@@ -151,7 +181,7 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
-# 3. حماية السيرفر من الحذف الجماعي (Anti-Nuke / Anti-Channel Delete)
+# 4. حماية السيرفر من الحذف الجماعي (Anti-Nuke / Anti-Channel Delete)
 @bot.event
 async def on_guild_channel_delete(channel):
     try:
@@ -331,7 +361,7 @@ async def notify(ctx, *, message: str = ""):
             pass
     await ctx.send(f"✅ تم إرسال التنبيه في الخاص إلى `{success_count}` عضواً مع الصورة.", delete_after=10)
 
-# أوامر السلاش (AFK, Clear, Absents, Warnings)
+# أوامر السلاش (AFK, Clear)
 @bot.tree.command(name="afk", description="تسجيل أنك غائب عن الجهاز (AFK)")
 @app_commands.describe(reason="سبب الغياب (اختياري)")
 async def slash_afk(interaction: discord.Interaction, reason: str = "غير متواجد حالياً"):
