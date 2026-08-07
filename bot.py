@@ -95,11 +95,12 @@ async def on_message(message):
     # نظام الترحيب والكلمات البسيطة
     if "السلام عليكم" in content or "سَلام عليكم" in content or "salam" in content:
         await message.reply(f"وعليكم السلام ورحمة الله وبركاته، أنرت السيرفر يا {message.author.mention}! 💜")
-    elif "قوانين" in content or "الوانين" in content:
-        await message.channel.send(f"📌 يرجى احترام قوانين السيرفر لتجنب العقوبات يا {message.author.mention}.")
+    elif "كمك" in content or "kmk" in content:
+        await message.channel.send(f"📌 احشم راك كبير {message.author.mention}.")
     elif "دعم" in content or "support" in content:
         await message.channel.send(f"🛠️ يمكنك فتح تذكرة أو طلب المساعدة من الإدارة يا {message.author.mention}.")
-
+        elif "نعطزمك" in content or "nikmok" in content:
+        await message.channel.send(f"🛠️احشم راك كبير {message.author.mention}.")
     # 1. نظام منع الروابط ودعوات ديسكورد
     if not is_admin and ("http://" in message.content or "https://" in message.content or "discord.gg/" in message.content or "discord.com/invite/" in message.content):
         try:
@@ -161,8 +162,6 @@ async def on_guild_channel_delete(channel):
             
             # حظر الشخص الذي قام بحذف القناة إذا لم يكن المالك
             await channel.guild.ban(user, reason="محاولة تخريب: حذف قنوات السيرفر بدون إذن.")
-            
-            # محاولة إعادة إنشائها أو إرسال تنبيه في السيرفر الإداري إن وجد
             print(f"⚠️ تحذير أمني: قام العضو {user} بحذف القناة {channel.name} وتم حظره تلقائياً.")
     except Exception as e:
         print(f"خطأ في نظام حماية القنوات: {e}")
@@ -277,7 +276,80 @@ async def stop(ctx):
     else:
         await ctx.send("❌ البوت ليس متصلاً بأي قناة صوتية.")
 
-# باقي الأوامر (مثل say, rep, points, notify, afk, clear, absent, warn ...) تم الحفاظ عليها بالكامل في بوتك.
+# ----------------- باقي الأوامر الإدارية ونظام النقاط -----------------
+
+@bot.command(name='say')
+async def say(ctx, *, message: str):
+    await ctx.message.delete()
+    await ctx.send(message)
+
+@bot.command(name='rep')
+async def rep(ctx, member: discord.Member):
+    if member == ctx.author:
+        await ctx.send("❌ لا يمكنك إعطاء نقطة لنفسك!")
+        return
+    cursor.execute('SELECT points FROM reputation WHERE user_id = ?', (member.id,))
+    result = cursor.fetchone()
+    if result is None:
+        new_points = 1
+        cursor.execute('INSERT INTO reputation (user_id, points) VALUES (?, ?)', (member.id, new_points))
+    else:
+        new_points = result[0] + 1
+        cursor.execute('UPDATE reputation SET points = ? WHERE user_id = ?', (new_points, member.id))
+    db.commit()
+    embed = discord.Embed(title="🌟 تفاعل مميز!", description=f"قام **{ctx.author.name}** بمنح نقطة تقدير لـ **{member.name}**\nرصيده الحالي: **{new_points}** نقطة.", color=discord.Color.blue())
+    await ctx.send(embed=embed)
+
+@bot.command(name='points')
+async def points(ctx, member: discord.Member = None):
+    target = member or ctx.author
+    cursor.execute('SELECT points FROM reputation WHERE user_id = ?', (target.id,))
+    result = cursor.fetchone()
+    user_points = result[0] if result else 0
+    embed = discord.Embed(title="📊 رصيد نقاط التقدير", description=f"العضو **{target.name}** لديه **{user_points}** نقطة احترام.", color=discord.Color.blue())
+    await ctx.send(embed=embed)
+
+@bot.command(name='notify')
+@commands.has_permissions(administrator=True)
+async def notify(ctx, *, message: str = ""):
+    IMAGE_URL = "https://i.imgur.com/K88ZCJA.jpeg"
+    try:
+        await ctx.message.delete()
+    except:
+        pass
+    embed = discord.Embed(title="🚨 تنبيه هام - Fanatic Reds", description=message, color=discord.Color.from_rgb(235, 47, 6))
+    if IMAGE_URL:
+        embed.set_image(url=IMAGE_URL)
+    success_count = 0
+    for member in ctx.guild.members:
+        if member.bot:
+            continue
+        try:
+            await member.send(content=f"سلام {member.mention}", embed=embed)
+            success_count += 1
+        except:
+            pass
+    await ctx.send(f"✅ تم إرسال التنبيه في الخاص إلى `{success_count}` عضواً مع الصورة.", delete_after=10)
+
+# أوامر السلاش (AFK, Clear, Absents, Warnings)
+@bot.tree.command(name="afk", description="تسجيل أنك غائب عن الجهاز (AFK)")
+@app_commands.describe(reason="سبب الغياب (اختياري)")
+async def slash_afk(interaction: discord.Interaction, reason: str = "غير متواجد حالياً"):
+    cursor.execute('INSERT OR REPLACE INTO afk_system (user_id, reason, time) VALUES (?, ?, ?)', (interaction.user.id, reason, datetime.datetime.now()))
+    db.commit()
+    embed = discord.Embed(title="💤 وضع الغياب (AFK)", description=f"تم تفعيل حالة الـ AFK بنجاح لعضونا {interaction.user.mention}.\n📌 السبب: **{reason}**", color=discord.Color.orange())
+    await interaction.response.send_message(embed=embed)
+
+@bot.tree.command(name="clear", description="مسح عدد محدد من الرسائل في الشات")
+@app_commands.describe(amount="عدد الرسائل المراد مسحها")
+@app_commands.checks.has_permissions(manage_messages=True)
+async def slash_clear(interaction: discord.Interaction, amount: int):
+    if amount <= 0:
+        await interaction.response.send_message("❌ يجب تحديد رقم أكبر من صفر!", ephemeral=True)
+        return
+    await interaction.response.defer(ephemeral=True)
+    deleted = await interaction.channel.purge(limit=amount)
+    await interaction.followup.send(f"✅ تم مسح `{len(deleted)}` رسالة بنجاح.", ephemeral=True)
 
 keep_alive()
 TOKEN = os.environ.get('DISCORD_TOKEN')
