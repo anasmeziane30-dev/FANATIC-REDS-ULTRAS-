@@ -555,7 +555,7 @@ class WarnModal(discord.ui.Modal, title="✨ • إنشاء تحذير جديد"
             description=f"👤 **العضو المخالف:** {self.member.mention}\n\n⚖️ **العقوبة:** `{self.punishment.value}`\n📌 **السبب:** `{self.reason.value}`\n⏳ **المدة:** `{self.duration.value}`{kick_status}",
             color=AESTHETIC_COLOR
         )
-        embed.set_footer(text="Sora Aesthetic Moderation 🤍")
+        embed.set_footer(text="Fanatic Reds Moderation 🤍")
         await interaction.followup.send(embed=embed)
 
 @bot.tree.command(name="warn", description="إرسال تحذير وتطبيق العقوبة")
